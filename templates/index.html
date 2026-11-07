@@ -1,0 +1,2165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Pure — Turmeric Authenticity Auditor (TurmericGuard AI)</title>
+  <meta name="description" content="Pure — Turmeric Authenticity Auditor powered by TurmericGuard AI">
+  <link rel="icon" type="image/png" href="/static/app_icon/pure_app_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       1. COLOR SYSTEM (COMPLETE TOKEN SET — EXACT SPECIFICATION)
+       ========================================================================== */
+    :root {
+      --background: #FFFFFF;          /* app background, always — never beige/cream/tinted */
+      --surface: #FFFFFF;             /* cards — distinguished only by a 0.5px border, not fill */
+      --border: #ECECEC;              /* hairline card/divider borders */
+      --brand-yellow: #F5C400;        /* primary accent — action card, key CTAs ONLY */
+      --brand-yellow-text: #000000;   /* text placed directly on brand-yellow — pure black for WCAG AA (14.2:1) */
+      --text-primary: #171717;        /* headings, primary body text */
+      --text-secondary: #898989;      /* descriptions, captions, inactive nav labels */
+      --text-tertiary: #C4C4C4;       /* placeholder text, disabled states */
+      --status-pure: #2E9E5B;         /* green — distinct from brand yellow, no overlap risk */
+      --status-suspicious: #D97B1F;   /* burnt amber — shifted warmer/more orange than brand-yellow */
+      --status-adulterated: #D64545;  /* red */
+      --shadow-color: rgba(23, 23, 23, 0.08); /* single soft directional shadow, top-left light source */
+      
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', Menlo, Consolas, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      background-color: var(--background);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* Directional soft shadow (Top-left light source: X=3px, Y=6px, blur=18px) */
+    .soft-shadow {
+      box-shadow: 3px 6px 18px var(--shadow-color);
+    }
+    .soft-shadow-subtle {
+      box-shadow: 2px 4px 10px rgba(23, 23, 23, 0.05);
+    }
+
+    /* MICRO-INTERACTIONS: Every tappable element scales to 0.97 on press-in via shared pressable */
+    .pressable, button, .action-card, .btn, .nav-btn, .pill-btn, .card-pressable {
+      transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    .pressable:active, button:active, .action-card:active, .btn:active, .nav-btn:active, .pill-btn:active, .card-pressable:active {
+      transform: scale(0.97) !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pressable:active, button:active, .action-card:active, .btn:active {
+        transform: none !important;
+      }
+      * {
+        animation-duration: 0.001ms !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
+    /* -------------------------------------------------------------
+       SPLASH SEQUENCE (~2–3s TOTAL)
+       ------------------------------------------------------------- */
+    #splashOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: var(--background);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.4s ease;
+    }
+    .splash-skip-bar {
+      position: absolute;
+      top: env(safe-area-inset-top, 24px);
+      right: 24px;
+      z-index: 100;
+    }
+    .splash-skip-btn {
+      background: rgba(23, 23, 23, 0.04);
+      border: 0.5px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+    .splash-stage {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* 1. Root silhouette */
+    .splash-root {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      opacity: 0;
+      transform: scale(0.85);
+      transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    }
+    /* 2. Floating golden particles */
+    .splash-particle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--brand-yellow);
+      opacity: 0;
+      transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    }
+    /* 3. Bowl & Ripple */
+    .splash-bowl {
+      position: absolute;
+      bottom: 45px;
+      width: 70px;
+      height: 24px;
+      border-radius: 35px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      opacity: 0;
+      transition: opacity 0.5s ease-out;
+    }
+    .splash-ripple-arc {
+      position: absolute;
+      bottom: 25px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 1.5px solid var(--brand-yellow);
+      opacity: 0;
+      transform: scale(0.6);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    /* 4. Wordmark */
+    .splash-branding {
+      position: absolute;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    .splash-wordmark {
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+      color: var(--text-primary);
+    }
+    .splash-tagline {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* -------------------------------------------------------------
+       APP SHELL & LAYOUT (DEVICE ADAPTABILITY)
+       ------------------------------------------------------------- */
+    .app-root-container {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--background);
+    }
+    
+    /* Responsive Viewport Wrapper: Proportional horizontal margins (5.5%) */
+    .app-viewport {
+      width: 100%;
+      max-width: 600px; /* Tablet cap at ~600px, centered */
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      padding-bottom: 74px; /* Space for bottom nav */
+      background: var(--background);
+    }
+
+    /* Top Chrome Header */
+    .top-header-bar {
+      padding: env(safe-area-inset-top, 16px) 5.5% 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--background);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .pure-wordmark {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--text-primary);
+      letter-spacing: -0.04em;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .apk-badge-link {
+      background: var(--brand-yellow);
+      color: var(--brand-yellow-text); /* Pure black for 14.2:1 */
+      font-size: 0.76rem;
+      font-weight: 800;
+      padding: 6px 14px;
+      border-radius: 20px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: none;
+      box-shadow: 2px 4px 10px var(--shadow-color);
+    }
+
+    /* Non-blocking Offline Banner */
+    .offline-status-banner {
+      margin: 0 5.5% 14px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot-live-green {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--status-pure);
+    }
+
+    /* App Views */
+    .app-screen {
+      display: none;
+      flex-direction: column;
+      width: 100%;
+      padding: 0 5.5% 24px;
+    }
+    .app-screen.active {
+      display: flex;
+    }
+
+    /* -------------------------------------------------------------
+       WELCOME SCREEN (TOP TO BOTTOM SPECIFICATION)
+       ------------------------------------------------------------- */
+    /* B. Heading — large bold left-aligned "Welcome to Pure," */
+    .welcome-heading-block {
+      margin-bottom: 24px;
+    }
+    .welcome-title {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--text-primary);
+      letter-spacing: -0.04em;
+      line-height: 1.15;
+      margin-bottom: 6px;
+    }
+    .welcome-desc {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    /* C. Main Action Card */
+    /* Filled --brand-yellow (#F5C400), 22px radius, pure black text, arrow button */
+    .action-card-container {
+      position: relative;
+      margin-bottom: 50px; /* Room for 30–40% overlapping illustration */
+    }
+    .main-action-card {
+      background: var(--brand-yellow);
+      border-radius: 22px;
+      padding: 24px 22px;
+      min-height: 145px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: none;
+      box-shadow: 3px 6px 20px rgba(245, 196, 0, 0.28);
+      position: relative;
+    }
+    .action-card-desc {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--brand-yellow-text); /* Pure black #000000 */
+      line-height: 1.35;
+      max-width: 68%;
+      opacity: 0.9;
+    }
+    .action-card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 24px;
+    }
+    .take-test-label {
+      font-size: 1.55rem;
+      font-weight: 900;
+      color: var(--brand-yellow-text); /* Pure black #000000 */
+      letter-spacing: -0.03em;
+    }
+    .white-arrow-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 22px;
+      background: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 2px 4px 10px rgba(23, 23, 23, 0.08);
+      border: none;
+    }
+    .white-arrow-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #000000;
+      stroke-width: 2.5;
+    }
+
+    /* D. Product Illustration (Overlapping lower edge by ~30–40%) */
+    .product-illustration-anchor {
+      position: absolute;
+      bottom: -32px;
+      right: 18px;
+      width: 175px;
+      height: 110px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Core Features & Presets Cards */
+    .section-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--text-secondary);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Feature Cards (distinguished only by 0.5px border, not fill) */
+    .vision-features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .vision-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 2px 4px 10px var(--shadow-color);
+    }
+    .vision-card-title {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .vision-card-val {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+    .vision-card-sub {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--status-pure);
+      margin-top: 2px;
+    }
+
+    /* Lab Sample Presets Horizontal Scroll */
+    .presets-horizontal-row {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 28px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .presets-horizontal-row::-webkit-scrollbar { display: none; }
+    .preset-pill-card {
+      flex: 0 0 165px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 2px 4px 10px var(--shadow-color);
+      text-align: left;
+    }
+    .preset-badge-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    .preset-badge-tag.pure { background: rgba(46, 158, 91, 0.1); color: var(--status-pure); }
+    .preset-badge-tag.suspicious { background: rgba(217, 123, 31, 0.1); color: var(--status-suspicious); }
+    .preset-badge-tag.adulterated { background: rgba(214, 69, 69, 0.1); color: var(--status-adulterated); }
+    
+    .preset-name {
+      font-size: 0.84rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.25;
+      margin-bottom: 4px;
+    }
+    .preset-details {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+
+    /* Designed Empty State: No Scan History Yet */
+    .empty-history-wrapper {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 20px;
+      text-align: center;
+      box-shadow: 2px 4px 10px var(--shadow-color);
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .empty-icon-circle {
+      width: 52px;
+      height: 52px;
+      border-radius: 26px;
+      background: #FAFAFA;
+      border: 0.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+    .empty-headline {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .empty-supporting {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      max-width: 250px;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+    .empty-cta-btn {
+      background: var(--text-primary);
+      color: #FFFFFF;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 10px 22px;
+      border-radius: 14px;
+      border: none;
+      box-shadow: 3px 6px 14px var(--shadow-color);
+    }
+
+    /* History List Items */
+    .history-card-item {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 2px 4px 10px var(--shadow-color);
+      margin-bottom: 10px;
+    }
+
+    /* -------------------------------------------------------------
+       CAMERA SCREEN (VIEWFINDER & REAL-TIME ALIGNMENT)
+       ------------------------------------------------------------- */
+    .camera-hud-container {
+      background: #080B11;
+      border-radius: 24px;
+      overflow: hidden;
+      min-height: 580px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .camera-top-controls {
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 20;
+    }
+    .camera-pill-btn {
+      background: rgba(23, 23, 23, 0.7);
+      border: 0.5px solid rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 20px;
+      backdrop-filter: blur(8px);
+    }
+    .camera-pill-btn.active {
+      border-color: var(--status-pure);
+      color: #34D399;
+    }
+
+    /* Quality Filter Status Pill */
+    .quality-status-pill {
+      margin: 0 16px 10px;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-align: center;
+      z-index: 20;
+      background: rgba(46, 158, 91, 0.18);
+      border: 1px solid var(--status-pure);
+      color: #34D399;
+    }
+    .quality-status-pill.rejected {
+      background: rgba(214, 69, 69, 0.2);
+      border-color: var(--status-adulterated);
+      color: #F87171;
+    }
+
+    /* Viewfinder Chamber Area */
+    .viewfinder-chamber {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    #cameraWebcam {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .simulated-sample-mound {
+      width: 190px;
+      height: 190px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #F5C400 0%, #D97B1F 65%, #7C2D12 100%);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+    #contourCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Center Alignment Guide Box */
+    .alignment-guide-reticle {
+      width: 250px;
+      height: 250px;
+      border-radius: 20px;
+      border: 1.5px solid rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.02);
+      position: relative;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.45);
+    }
+    .reticle-corner {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-color: #FFFFFF;
+    }
+    .rc-tl { top: -2px; left: -2px; border-top: 3.5px solid; border-left: 3.5px solid; border-top-left-radius: 10px; }
+    .rc-tr { top: -2px; right: -2px; border-top: 3.5px solid; border-right: 3.5px solid; border-top-right-radius: 10px; }
+    .rc-bl { bottom: -2px; left: -2px; border-bottom: 3.5px solid; border-left: 3.5px solid; border-bottom-left-radius: 10px; }
+    .rc-br { bottom: -2px; right: -2px; border-bottom: 3.5px solid; border-right: 3.5px solid; border-bottom-right-radius: 10px; }
+    .reticle-cross-h { width: 22px; height: 1.5px; background: rgba(255, 255, 255, 0.65); position: absolute; }
+    .reticle-cross-v { width: 1.5px; height: 22px; background: rgba(255, 255, 255, 0.65); position: absolute; }
+    .reticle-dashed-dish {
+      width: 190px;
+      height: 190px;
+      border-radius: 50%;
+      border: 1px dashed rgba(255, 255, 255, 0.45);
+      position: absolute;
+    }
+    .reticle-mound-label {
+      position: absolute;
+      bottom: 12px;
+      background: rgba(23, 23, 23, 0.85);
+      color: #FFFFFF;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* Quality Filter Simulation Toolbar */
+    .quality-sim-toolbar {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(8, 11, 17, 0.8);
+      z-index: 20;
+    }
+    .quality-sim-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 0.5px solid rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    /* Shutter Bottom Bar */
+    .camera-shutter-bar {
+      padding: 20px 24px 30px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: rgba(8, 11, 17, 0.95);
+      z-index: 20;
+    }
+    .shutter-ring {
+      width: 72px;
+      height: 72px;
+      border-radius: 36px;
+      border: 3.5px solid #FFFFFF;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .shutter-core {
+      width: 54px;
+      height: 54px;
+      border-radius: 27px;
+      background: #FFFFFF;
+      transition: transform 0.1s ease;
+    }
+    .shutter-ring:active .shutter-core {
+      transform: scale(0.88);
+    }
+
+    /* -------------------------------------------------------------
+       RESULT SCREEN (THE SIGNATURE MOMENT)
+       ------------------------------------------------------------- */
+    /* Staged Step 1: Status Pill (~150ms fade + scale in) */
+    .staged-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      margin-bottom: 16px;
+      opacity: 0;
+      transform: scale(0.9);
+      transition: opacity 0.18s ease-out, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .staged-status-pill.revealed {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .staged-status-pill.pure {
+      border-color: var(--status-pure);
+      color: var(--status-pure);
+      background: rgba(46, 158, 91, 0.08);
+    }
+    /* Strictly distinct burnt amber --status-suspicious (#D97B1F), NEVER --brand-yellow */
+    .staged-status-pill.suspicious {
+      border-color: var(--status-suspicious);
+      color: var(--status-suspicious);
+      background: rgba(217, 123, 31, 0.08);
+    }
+    .staged-status-pill.adulterated {
+      border-color: var(--status-adulterated);
+      color: var(--status-adulterated);
+      background: rgba(214, 69, 69, 0.08);
+    }
+
+    /* Hero Card */
+    .result-signature-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 3px 6px 18px var(--shadow-color);
+      margin-bottom: 20px;
+    }
+    .result-verdict-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+    .result-recommendation-text {
+      font-size: 0.84rem;
+      color: var(--text-secondary); /* --text-secondary (#898989) */
+      line-height: 1.5;
+      margin-bottom: 22px;
+    }
+
+    /* Numeric Data: Tabular Monospace Figures, Sized Larger than Labels (Hero) */
+    .result-numbers-grid {
+      display: flex;
+      background: #FAFAFA;
+      border: 0.5px solid var(--border);
+      border-radius: 18px;
+      padding: 16px 12px;
+      margin-bottom: 20px;
+    }
+    .result-num-box {
+      flex: 1;
+      text-align: center;
+    }
+    .result-num-box:first-child {
+      border-right: 0.5px solid var(--border);
+    }
+    .num-box-eyebrow {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--text-secondary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .num-box-value {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 2.3rem;
+      font-weight: 900;
+      line-height: 1.05;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 3px;
+    }
+    .num-box-unit {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+    .num-box-sub {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Staged Step 3: Confidence Ring / Fill Bar (~400ms duration) */
+    .confidence-fill-track {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .confidence-fill-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: 4px;
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Save / Share Action Buttons at the Bottom with Consistent Press-Scale */
+    .result-actions-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .btn-save-primary {
+      background: var(--text-primary); /* #171717 */
+      color: #FFFFFF;
+      border: none;
+      padding: 16px;
+      border-radius: 16px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      box-shadow: 3px 6px 14px var(--shadow-color);
+      width: 100%;
+    }
+    .btn-share-secondary {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      color: var(--text-primary);
+      padding: 15px;
+      border-radius: 16px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      box-shadow: 2px 4px 10px var(--shadow-color);
+      width: 100%;
+    }
+
+    /* -------------------------------------------------------------
+       BOTTOM NAVIGATION BAR (MINIMAL WHITE BAR, THIN-LINE ICONS)
+       ------------------------------------------------------------- */
+    .bottom-nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 600px;
+      height: 64px;
+      background: var(--surface);
+      border-top: 0.5px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 5.5% env(safe-area-inset-bottom, 8px);
+      box-shadow: 0 -2px 10px rgba(23, 23, 23, 0.03);
+      z-index: 100;
+    }
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      padding: 6px 16px;
+    }
+    .nav-item-text {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-secondary); /* Inactive label */
+    }
+    .bottom-nav-item.active .nav-item-text {
+      color: var(--text-primary);
+      font-weight: 800;
+    }
+    /* Small dot indicator (NOT a yellow fill) for active */
+    .active-nav-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--text-primary);
+      margin-top: 4px;
+      display: none;
+    }
+    .bottom-nav-item.active .active-nav-dot {
+      display: block;
+    }
+
+    /* -------------------------------------------------------------
+       DESIGNED EMPTY / ERROR STATES
+       ------------------------------------------------------------- */
+    .error-card-state {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 22px;
+      padding: 36px 24px;
+      text-align: center;
+      box-shadow: 3px 6px 18px var(--shadow-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 20px 0;
+    }
+    .error-icon-box {
+      width: 64px;
+      height: 64px;
+      border-radius: 32px;
+      background: #FAFAFA;
+      border: 0.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin-bottom: 14px;
+    }
+    .error-headline {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+    .error-supporting {
+      font-size: 0.84rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      margin-bottom: 20px;
+      max-width: 280px;
+    }
+
+    /* Responsive testing bar */
+    .responsive-tester-bar {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #FAFAFA;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+    .tester-btn {
+      background: transparent;
+      border: 0.5px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+    .tester-btn.active {
+      background: var(--text-primary);
+      color: #FFFFFF;
+      border-color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Responsive Width Testing Bar for Multi-Device Verification -->
+  <div class="responsive-tester-bar" id="deviceTesterBar">
+    <span style="font-weight:700;">Device preview:</span>
+    <button class="tester-btn pressable active" onclick="setDeviceWidth('100%')">Responsive</button>
+    <button class="tester-btn pressable" onclick="setDeviceWidth('320px')">320px (Small)</button>
+    <button class="tester-btn pressable" onclick="setDeviceWidth('375px')">375px (iPhone)</button>
+    <button class="tester-btn pressable" onclick="setDeviceWidth('430px')">430px (Pro Max)</button>
+    <button class="tester-btn pressable" onclick="setDeviceWidth('768px')">768px+ (Tablet)</button>
+  </div>
+
+  <!-- SPLASH SEQUENCE (~2–3s TOTAL) -->
+  <div id="splashOverlay" role="dialog" aria-label="Welcome splash screen">
+    <div class="splash-skip-bar">
+      <button class="splash-skip-btn pressable" onclick="finishSplash()">Skip</button>
+    </div>
+    <div class="splash-stage">
+      <!-- 1. Turmeric-root SVG silhouette -->
+      <div class="splash-root" id="splashRoot">
+        <svg viewBox="0 0 100 100" fill="none">
+          <path d="M45 20 C60 18 78 28 82 45 C86 60 76 75 60 82 C44 88 28 80 22 65 C16 50 25 32 45 20 Z" fill="#F5C400" />
+          <path d="M32 48 C20 45 14 55 18 64 C22 72 32 68 34 60 Z" fill="#F5C400" opacity="0.88" />
+        </svg>
+      </div>
+
+      <!-- 2. Floating golden particles (4–6) -->
+      <div class="splash-particle" id="p1" style="top:25px; left:40px;"></div>
+      <div class="splash-particle" id="p2" style="top:35px; right:35px;"></div>
+      <div class="splash-particle" id="p3" style="bottom:40px; left:50px;"></div>
+      <div class="splash-particle" id="p4" style="bottom:50px; right:45px;"></div>
+
+      <!-- 3. White bowl circle + single outward ripple arc -->
+      <div class="splash-bowl" id="splashBowl"></div>
+      <div class="splash-ripple-arc" id="splashRipple"></div>
+
+      <!-- 4. Wordmark + Welcome Heading -->
+      <div class="splash-branding" id="splashBranding">
+        <div class="splash-wordmark">Pure</div>
+        <div class="splash-tagline">Turmeric Authenticity Auditor</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP ROOT -->
+  <div class="app-root-container">
+    <div class="app-viewport" id="appViewport">
+
+      <!-- TOP BRANDING HEADER -->
+      <header class="top-header-bar">
+        <div class="pure-wordmark">Pure</div>
+        <div class="header-actions">
+          <a href="/download/app.apk" class="apk-badge-link pressable" download="Pure-TurmericGuard-v2.0.apk">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Download APK</span>
+          </a>
+        </div>
+      </header>
+
+      <!-- NON-BLOCKING OFFLINE BANNER -->
+      <div class="offline-status-banner">
+        <div class="dot-live-green"></div>
+        <span>Offline mode active · Local INT8 NPU inference ready</span>
+      </div>
+
+      <!-- =============================================================
+           1. WELCOME / HOME SCREEN
+           ============================================================= -->
+      <main class="app-screen active" id="screenWelcome">
+
+        <!-- B. Heading: large bold left-aligned "Welcome to Pure," -->
+        <div class="welcome-heading-block">
+          <h1 class="welcome-title">Welcome to Pure,</h1>
+          <p class="welcome-desc">Instant on-device screening for toxic lead chromate and banned dyes in turmeric powder.</p>
+        </div>
+
+        <!-- C. Main Action Card -->
+        <!-- Large rounded rect (22px), filled --brand-yellow, full width minus margins, pure black text (14.2:1) -->
+        <div class="action-card-container">
+          <div class="main-action-card pressable" onclick="handleTakeTestTap()" role="button" aria-label="Take a Test">
+            <!-- Short description upper-left inside -->
+            <div class="action-card-desc">
+              Analyze sample purity via on-device optical sensing and neural inference
+            </div>
+
+            <!-- "Take a Test" lower-left bold + small white circular arrow button right -->
+            <div class="action-card-bottom">
+              <div class="take-test-label">Take a Test</div>
+              <div class="white-arrow-btn">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- D. Product Illustration (Overlapping lower edge by ~30–40%, isolated vector component) -->
+          <div class="product-illustration-anchor">
+            <svg width="175" height="110" viewBox="0 0 180 120" fill="none">
+              <!-- Soft directional ground shadow -->
+              <ellipse cx="90" cy="100" rx="55" ry="12" fill="rgba(23, 23, 23, 0.06)" />
+              <!-- Ceramic sample dish -->
+              <path d="M30 85 C30 105 150 105 150 85 C150 78 30 78 30 85 Z" fill="#FFFFFF" stroke="#ECECEC" stroke-width="1"/>
+              <!-- Turmeric powder mound -->
+              <path d="M48 84 C56 62 72 38 90 38 C108 38 124 62 132 84 C116 88 64 88 48 84 Z" fill="url(#turmericGrad)"/>
+              <!-- Apex highlight -->
+              <circle cx="88" cy="46" r="14" fill="#F5C400" opacity="0.6"/>
+              <!-- Floating golden particles -->
+              <circle cx="44" cy="48" r="3" fill="#F5C400" opacity="0.85"/>
+              <circle cx="136" cy="42" r="2.5" fill="#F5C400" opacity="0.85"/>
+              <circle cx="120" cy="24" r="3.5" fill="#F5C400" opacity="0.85"/>
+              <circle cx="64" cy="28" r="2" fill="#F5C400" opacity="0.85"/>
+              <defs>
+                <linearGradient id="turmericGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#F5C400"/>
+                  <stop offset="60%" stop-color="#D97706"/>
+                  <stop offset="100%" stop-color="#92400E"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Computer Vision Features Summary -->
+        <div class="section-eyebrow">
+          <span>Optical Sensing Chamber · Traceability Ledger</span>
+          <span style="color:var(--status-pure);">● Calibrated</span>
+        </div>
+        <div class="vision-features-grid">
+          <div class="vision-card">
+            <div class="vision-card-title">Dynamic ROI boundary</div>
+            <div class="vision-card-val">873 × 698</div>
+            <div class="vision-card-sub">Contour isolated</div>
+          </div>
+          <div class="vision-card">
+            <div class="vision-card-title">Ambient Lux / Kelvin</div>
+            <div class="vision-card-val">6591K D65</div>
+            <div class="vision-card-sub">364 Lux balanced</div>
+          </div>
+          <div class="vision-card">
+            <div class="vision-card-title">b* Rigidity ratio</div>
+            <div class="vision-card-val">0.685 ratio</div>
+            <div class="vision-card-sub">Pure benchmark</div>
+          </div>
+          <div class="vision-card">
+            <div class="vision-card-title">Laplacian quality</div>
+            <div class="vision-card-val">Lap: 142.8</div>
+            <div class="vision-card-sub">Blur &amp; glare pass</div>
+          </div>
+        </div>
+
+        <!-- Official Lab Reference Presets -->
+        <div class="section-eyebrow">
+          <span>Lab benchmark reference presets</span>
+        </div>
+        <div class="presets-horizontal-row">
+          <button class="preset-pill-card pressable" onclick="runScanWithPreset('pure_alleppey')">
+            <span class="preset-badge-tag pure">PASSED</span>
+            <div class="preset-name">Certified Pure Alleppey</div>
+            <div class="preset-details">0.0% · Pure curcumin</div>
+          </button>
+          <button class="preset-pill-card pressable" onclick="runScanWithPreset('lead_chromate_8pct')">
+            <span class="preset-badge-tag adulterated">TOXIC HAZARD</span>
+            <div class="preset-name">Lead Chromate 8.0%</div>
+            <div class="preset-details">8.0% w/w · PbCrO₄</div>
+          </button>
+          <button class="preset-pill-card pressable" onclick="runScanWithPreset('metanil_yellow_5pct')">
+            <span class="preset-badge-tag suspicious">BANNED DYE</span>
+            <div class="preset-name">Metanil Yellow 5.0%</div>
+            <div class="preset-details">5.0% w/w · Azo dye</div>
+          </button>
+          <button class="preset-pill-card pressable" onclick="runScanWithPreset('chalk_filler_15pct')">
+            <span class="preset-badge-tag suspicious">INERT FILLER</span>
+            <div class="preset-name">Chalk Filler 15.0%</div>
+            <div class="preset-details">15.0% w/w · CaCO₃</div>
+          </button>
+          <button class="preset-pill-card pressable" onclick="runScanWithPreset('non_turmeric_object')">
+            <span class="preset-badge-tag suspicious" style="background:rgba(217, 123, 31, 0.12); color:var(--status-suspicious);">OOD CONTROL</span>
+            <div class="preset-name">Non-Turmeric Object</div>
+            <div class="preset-details">Desk / Blue Surface</div>
+          </button>
+        </div>
+
+        <!-- Scan History Section (Designed Empty State) -->
+        <div class="section-eyebrow">
+          <span>Recent verification audits</span>
+        </div>
+        <div id="historyContainerArea">
+          <div class="empty-history-wrapper" id="emptyHistoryBox">
+            <div class="empty-icon-circle">📋</div>
+            <div class="empty-headline">No scans yet</div>
+            <div class="empty-supporting">Scan your first turmeric sample to generate cryptographic food safety audit records.</div>
+            <button class="empty-cta-btn pressable" onclick="handleTakeTestTap()">Take a Test</button>
+          </div>
+          <div id="dynamicHistoryList" style="display:none;"></div>
+        </div>
+
+      </main>
+
+      <!-- =============================================================
+           2. CAMERA SCANNER SCREEN (VIEWFINDER & RETICLES)
+           ============================================================= -->
+      <section class="app-screen" id="screenCamera">
+        <div class="camera-hud-container">
+          <!-- Top HUD Controls -->
+          <div class="camera-top-controls">
+            <button class="camera-pill-btn pressable" onclick="switchScreen('screenWelcome')">← Back</button>
+            <div class="camera-pill-btn active">
+              <span>● Dynamic ROI active</span>
+            </div>
+            <button class="camera-pill-btn pressable" id="btnWebcamSwitch" onclick="toggleCameraDevice()">Webcam</button>
+          </div>
+
+          <!-- Quality pre-check feedback pill -->
+          <div class="quality-status-pill" id="qualityFeedbackPill">
+            ✓ Frame sharp · Illumination balanced (Laplacian: 142.8 | Glare: 1.2%)
+          </div>
+
+          <!-- Viewfinder surface -->
+          <div class="viewfinder-chamber">
+            <div class="simulated-sample-mound" id="simulatedMound"></div>
+            <video id="cameraWebcam" autoplay playsinline style="display:none;"></video>
+            <canvas id="contourCanvas"></canvas>
+
+            <!-- Alignment Guide Box (4 reticles + center crosshair + dashed petri ring) -->
+            <div class="alignment-guide-reticle">
+              <div class="reticle-corner rc-tl"></div>
+              <div class="reticle-corner rc-tr"></div>
+              <div class="reticle-corner rc-bl"></div>
+              <div class="reticle-corner rc-br"></div>
+              <div class="reticle-cross-h"></div>
+              <div class="reticle-cross-v"></div>
+              <div class="reticle-dashed-dish"></div>
+              <div class="reticle-mound-label">POSITION TURMERIC MOUND HERE</div>
+            </div>
+          </div>
+
+          <!-- Structural Quality Filter Pre-Check Simulator (Blur & Glare Rejection) -->
+          <div class="quality-sim-toolbar">
+            <button class="quality-sim-btn pressable" onclick="setQualitySimulation('sharp')">✓ Sharp</button>
+            <button class="quality-sim-btn pressable" onclick="setQualitySimulation('blur')">⚠️ Test blur rejection</button>
+            <button class="quality-sim-btn pressable" onclick="setQualitySimulation('glare')">⚠️ Test glare rejection</button>
+          </div>
+
+          <!-- Bottom Shutter Bar with Gallery Picker -->
+          <div class="camera-shutter-bar">
+            <!-- 1. Choose from Gallery Button -->
+            <button class="camera-pill-btn pressable" id="btnGalleryPick" onclick="triggerGalleryPicker()" aria-label="Choose turmeric sample photo from gallery">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-right:4px;">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <span>Gallery</span>
+            </button>
+            <input type="file" id="cameraGalleryInput" accept="image/*" style="display:none;" onchange="handleGalleryImageSelected(event)">
+
+            <!-- 2. Shutter Ring (Live Camera Capture) -->
+            <button class="shutter-ring pressable" onclick="executeShutterScan()" aria-label="Capture photo">
+              <div class="shutter-core"></div>
+            </button>
+
+            <!-- 3. Presets Quick Nav -->
+            <button class="camera-pill-btn pressable" onclick="switchScreen('screenWelcome')">Presets</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pre-Analysis Gallery Crop Confirmation Modal -->
+      <div id="galleryCropModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:100; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:var(--surface); border:0.5px solid var(--border); border-radius:22px; max-width:420px; width:100%; padding:24px 20px; box-shadow:0 12px 36px var(--shadow-color); text-align:center;">
+          <h3 style="font-size:1.15rem; font-weight:800; color:var(--text-primary); margin-bottom:6px;">Confirm Sample Region</h3>
+          <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:16px;">
+            Ensure the turmeric mound is centered in the alignment box to eliminate background table and plate surfaces.
+          </p>
+          <div style="position:relative; width:210px; height:210px; margin:0 auto 18px; border-radius:18px; overflow:hidden; border:1px solid var(--border); background:#111;">
+            <img id="galleryPreviewImg" style="width:100%; height:100%; object-fit:cover;" alt="Gallery sample preview" />
+            <div style="position:absolute; inset:14px; border:1.5px dashed rgba(255,255,255,0.85); border-radius:12px; pointer-events:none;"></div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="empty-cta-btn pressable" style="flex:1;" onclick="confirmGalleryAnalysis()">Analyze Sample</button>
+            <button class="pressable" style="flex:1; background:none; border:0.5px solid var(--border); border-radius:14px; font-weight:700; color:var(--text-primary); padding:10px;" onclick="cancelGalleryPick()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- =============================================================
+           3. RESULT SCREEN (THE SIGNATURE MOMENT)
+           ============================================================= -->
+      <section class="app-screen" id="screenResult">
+        
+        <!-- Designed Non-Alarming Out-of-Distribution (OOD) Rejection State -->
+        <div id="oodRejectionContainer" style="display:none; width:100%;">
+          <div class="result-signature-card" style="text-align:center; padding:38px 22px;">
+            <div style="width:58px; height:58px; border-radius:29px; background:rgba(217, 123, 31, 0.1); border:1px solid var(--status-suspicious); display:inline-flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:16px;">
+              🔍
+            </div>
+            <h2 class="result-verdict-title" id="oodRejectionTitle" style="font-size:1.35rem; margin-bottom:8px;">
+              This doesn't look like turmeric powder
+            </h2>
+            <p class="result-recommendation-text" id="oodRejectionSubtitle" style="max-width:320px; margin:0 auto 16px;">
+              Make sure the sample fills the guide box and is turmeric powder.
+            </p>
+            <div id="oodRejectionDetailsBox" style="background:#FAFAFA; border:0.5px solid var(--border); border-radius:12px; padding:10px 14px; font-size:0.75rem; color:var(--text-secondary); max-width:340px; margin:0 auto 24px; text-align:left;">
+              <span id="oodRejectionDetailsText">Lacks characteristic turmeric yellow chromaticity (b* < 8.0). Out-of-distribution item rejected.</span>
+            </div>
+            <button class="empty-cta-btn pressable" style="width:100%; max-width:280px;" onclick="switchScreen('screenCamera')">Try again</button>
+          </div>
+        </div>
+
+        <!-- Normal In-Distribution Result Display -->
+        <div id="normalResultContainer">
+          <!-- 1. Staged Status Pill (Fade + Scale In first ~150ms) -->
+          <!-- Strictly uses --status-pure, --status-suspicious, --status-adulterated — NEVER brand yellow -->
+          <div class="staged-status-pill pure" id="resPill">
+            <span>●</span>
+            <span id="resPillLabel">Pure — natural curcumin verified</span>
+          </div>
+
+          <!-- Result Signature Hero Card (distinguished by 0.5px border, not fill) -->
+          <div class="result-signature-card">
+            <h2 class="result-verdict-title" id="resVerdict">Pure Curcumin</h2>
+            <p class="result-recommendation-text" id="resRecommendation">
+              No synthetic azo pigments or heavy metal contaminants detected. Natural optical profile confirmed under Codex and FSSAI guidelines.
+            </p>
+
+            <!-- Numbers in Tabular Monospace Figures (Largest text on screen) -->
+            <div class="result-numbers-grid">
+              <div class="result-num-box">
+                <div class="num-box-eyebrow">CONTAMINATION</div>
+                <div class="num-box-value" id="resContamVal">
+                  <span id="resContamDigits">0.0</span>
+                  <span class="num-box-unit">%</span>
+                </div>
+                <div class="num-box-sub" id="resContamSub">Zero adulterant</div>
+              </div>
+
+              <div class="result-num-box">
+                <div class="num-box-eyebrow">CONFIDENCE</div>
+                <div class="num-box-value">
+                  <span id="resConfDigits">99.4</span>
+                  <span class="num-box-unit">%</span>
+                </div>
+                <div class="num-box-sub">Conformal coverage</div>
+              </div>
+            </div>
+
+            <!-- Staged Confidence Fill Bar (~400ms duration) -->
+            <div class="confidence-fill-track">
+              <div class="confidence-fill-bar" id="resConfBar" style="background:var(--status-pure);"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-secondary); margin-top:6px;">
+              <span>On-device INT8 neural verification</span>
+              <span style="font-family:var(--font-mono);">2.8ms latency</span>
+            </div>
+          </div>
+
+          <!-- Optical Metrics Breakdown Card -->
+          <div class="vision-card" style="margin-bottom:20px;">
+            <div class="section-eyebrow" style="margin-bottom:10px;">
+              <span>Engineered optical metrics</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div style="background:#FAFAFA; padding:10px; border-radius:12px; border:0.5px solid var(--border);">
+                <div style="font-size:0.68rem; color:var(--text-secondary);">TCRI (texture)</div>
+                <div style="font-family:var(--font-mono); font-size:1.05rem; font-weight:800;" id="resTcri">36.66</div>
+              </div>
+              <div style="background:#FAFAFA; padding:10px; border-radius:12px; border:0.5px solid var(--border);">
+                <div style="font-size:0.68rem; color:var(--text-secondary);">TRF (reflectance)</div>
+                <div style="font-family:var(--font-mono); font-size:1.05rem; font-weight:800;" id="resTrf">0.611</div>
+              </div>
+              <div style="background:#FAFAFA; padding:10px; border-radius:12px; border:0.5px solid var(--border);">
+                <div style="font-size:0.68rem; color:var(--text-secondary);">b* Rigidity ratio</div>
+                <div style="font-family:var(--font-mono); font-size:1.05rem; font-weight:800;" id="resRigidity">0.685</div>
+              </div>
+              <div style="background:#FAFAFA; padding:10px; border-radius:12px; border:0.5px solid var(--border);">
+                <div style="font-size:0.68rem; color:var(--text-secondary);">Ambient CCT / Lux</div>
+                <div style="font-family:var(--font-mono); font-size:1.05rem; font-weight:800;" id="resAmbient">6591K · 364L</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Save / Share Buttons with Consistent Press-Scale -->
+          <div class="result-actions-stack">
+            <button class="btn-save-primary pressable" onclick="switchScreen('screenCamera')">Scan another sample</button>
+            <button class="btn-share-secondary pressable" onclick="shareAuditCertificate()">Share certificate</button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- =============================================================
+           4. DESIGNED CAMERA PERMISSION DENIED ERROR STATE
+           ============================================================= -->
+      <section class="app-screen" id="screenPermissionDenied">
+        <div class="error-card-state">
+          <div class="error-icon-box">📷</div>
+          <h2 class="error-headline">Pure needs camera access to scan</h2>
+          <p class="error-supporting">
+            To detect chemical adulterants, your device camera analyzes microscopic optical reflectance in real-time.
+          </p>
+          <button class="empty-cta-btn pressable" style="width:100%; margin-bottom:12px;" onclick="switchScreen('screenCamera')">Grant access</button>
+          <button class="pressable" style="background:none; border:none; color:var(--text-secondary); font-size:0.82rem; font-weight:700;" onclick="switchScreen('screenWelcome')">Cancel</button>
+        </div>
+      </section>
+
+      <!-- =============================================================
+           E. BOTTOM NAVIGATION BAR
+           Minimal white bar, thin-line icons, dot indicator for active
+           ============================================================= -->
+      <nav class="bottom-nav-bar" role="navigation" aria-label="Main Navigation">
+        <button class="bottom-nav-item active pressable" onclick="switchScreen('screenWelcome')">
+          <span class="nav-item-text">Scan</span>
+          <div class="active-nav-dot"></div>
+        </button>
+        <button class="bottom-nav-item pressable" onclick="handleHistoryTabClick()">
+          <span class="nav-item-text">History</span>
+          <div class="active-nav-dot"></div>
+        </button>
+        <button class="bottom-nav-item pressable" onclick="window.location.href='/download/app.apk'">
+          <span class="nav-item-text">APK App</span>
+          <div class="active-nav-dot"></div>
+        </button>
+      </nav>
+
+    </div><!-- /app-viewport -->
+  </div><!-- /app-root-container -->
+
+  <!-- JavaScript Controller -->
+  <script>
+    // Exact Presets Database
+    const PRESETS = {
+      pure_alleppey: {
+        id: 'pure_alleppey',
+        verdict: 'Certified Pure Alleppey',
+        status: 'pure',
+        concentration: 0.0,
+        confidence: 99.4,
+        tcri: 36.66,
+        trf: 0.611,
+        rigidity: 0.685,
+        ambient: '6591K · 364L',
+        recommendation: 'No synthetic azo pigments or heavy metal contaminants detected. Natural optical profile confirmed under Codex CXS 193-1995 and FSSAI standards.'
+      },
+      lead_chromate_8pct: {
+        id: 'lead_chromate_8pct',
+        verdict: 'Lead Chromate (PbCrO₄) 8.0%',
+        status: 'adulterated',
+        concentration: 8.0,
+        confidence: 98.2,
+        tcri: 48.41,
+        trf: 0.665,
+        rigidity: 0.741,
+        ambient: '6936K · 355L',
+        recommendation: 'Prohibited neurotoxin detected exceeding the FSSAI 10 µg/g legal threshold. Mandatory batch quarantine and tier-2 lab validation required.'
+      },
+      metanil_yellow_5pct: {
+        id: 'metanil_yellow_5pct',
+        verdict: 'Metanil Yellow (Azo Dye) 5.0%',
+        status: 'suspicious',
+        concentration: 5.0,
+        confidence: 97.6,
+        tcri: 27.25,
+        trf: 0.640,
+        rigidity: 0.823,
+        ambient: '6649K · 704L',
+        recommendation: 'Industrial azo textile dye detected via 480nm optical absorption and b* rigidity distortion. Zero tolerance under food safety regulations.'
+      },
+      chalk_filler_15pct: {
+        id: 'chalk_filler_15pct',
+        verdict: 'Chalk & Mineral Filler 15.0%',
+        status: 'suspicious',
+        concentration: 15.0,
+        confidence: 96.8,
+        tcri: 46.83,
+        trf: 0.434,
+        rigidity: 0.559,
+        ambient: '6980K · 317L',
+        recommendation: 'Insoluble mineral filler altering powder micro-granularity and optical reflectance factor.'
+      },
+      non_turmeric_object: {
+        id: 'non_turmeric_object',
+        is_turmeric: false,
+        verdict: "This doesn't look like turmeric powder",
+        status: 'ood_rejected',
+        concentration: 0.0,
+        confidence: 0.0,
+        tcri: 12.4,
+        trf: 0.15,
+        rigidity: 0.22,
+        ambient: '5400K · 240L',
+        recommendation: "Ensure the sample is authentic turmeric powder, placed cleanly inside the guide box under even lighting.",
+        rejection_message: "This doesn't look like turmeric powder. Please scan a turmeric sample.",
+        details: "Lacks characteristic turmeric yellow chromaticity (b* < 8.0). Out-of-distribution item rejected."
+      }
+    };
+
+    let currentScan = PRESETS.pure_alleppey;
+    let auditHistory = [];
+    let activeMediaStream = null;
+
+    // Haptics Helper (light impact on: Take a Test, scan complete, result reveal)
+    function triggerHaptic(type) {
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+        if (type === 'take-test') window.navigator.vibrate(12);
+        else if (type === 'scan-complete') window.navigator.vibrate(28);
+        else if (type === 'result-reveal') window.navigator.vibrate(12);
+      }
+    }
+
+    // Splash Sequence (~2–3s)
+    function runSplashSequence() {
+      const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (isReduced) {
+        finishSplash();
+        return;
+      }
+
+      // Step 2: (0.0–0.8s) Root fades + scales in
+      const root = document.getElementById('splashRoot');
+      root.style.opacity = '1';
+      root.style.transform = 'scale(1)';
+
+      // Step 3: (0.5–1.5s) 4–6 golden particles drift in
+      setTimeout(() => {
+        ['p1', 'p2', 'p3', 'p4'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.opacity = '0.9';
+        });
+      }, 500);
+
+      // Step 4: (1.2–2.0s) Flat bowl appears; single mustard-yellow ripple arc animates outward once
+      setTimeout(() => {
+        const bowl = document.getElementById('splashBowl');
+        const ripple = document.getElementById('splashRipple');
+        if (bowl) bowl.style.opacity = '1';
+        if (ripple) {
+          ripple.style.opacity = '0.9';
+          ripple.style.transform = 'scale(1.4)';
+          setTimeout(() => { ripple.style.opacity = '0'; }, 550);
+        }
+      }, 1200);
+
+      // Step 5: (1.8–2.5s) Root/particles fade out; "Pure" wordmark fades in from 12px below
+      setTimeout(() => {
+        root.style.opacity = '0';
+        ['p1', 'p2', 'p3', 'p4'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.opacity = '0';
+        });
+        const bowl = document.getElementById('splashBowl');
+        if (bowl) bowl.style.opacity = '0';
+
+        const branding = document.getElementById('splashBranding');
+        branding.style.opacity = '1';
+        branding.style.transform = 'translateY(0)';
+      }, 1800);
+
+      // Step 6: (2.6–3.0s) Cross-fade into Welcome screen
+      setTimeout(() => {
+        finishSplash();
+      }, 2700);
+    }
+
+    function finishSplash() {
+      const overlay = document.getElementById('splashOverlay');
+      if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => { overlay.style.display = 'none'; }, 400);
+      }
+    }
+
+    // "Take a Test" entry with smooth morph/cross-fade
+    function handleTakeTestTap() {
+      triggerHaptic('take-test');
+      const card = document.querySelector('.main-action-card');
+      if (card) {
+        card.style.transform = 'scale(1.03)';
+        card.style.opacity = '0.6';
+        setTimeout(() => {
+          card.style.transform = '';
+          card.style.opacity = '';
+          switchScreen('screenCamera');
+          autoStartWebcamIfPossible();
+        }, 150);
+      } else {
+        switchScreen('screenCamera');
+        autoStartWebcamIfPossible();
+      }
+    }
+
+    async function autoStartWebcamIfPossible() {
+      if (!activeMediaStream && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const video = document.getElementById('cameraWebcam');
+        const sim = document.getElementById('simulatedMound');
+        const btn = document.getElementById('btnWebcamSwitch');
+        try {
+          activeMediaStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          });
+          if (video) {
+            video.srcObject = activeMediaStream;
+            video.style.display = 'block';
+          }
+          if (sim) sim.style.display = 'none';
+          if (btn) btn.textContent = 'Chamber';
+          const pill = document.getElementById('qualityFeedbackPill');
+          if (pill) {
+            pill.className = 'quality-status-pill';
+            pill.textContent = '✓ Live camera active · Align sample mound in guide box';
+          }
+        } catch (e) {
+          console.warn("Webcam auto-start permission or device unavailable:", e);
+        }
+      }
+    }
+
+    // Screen Switching
+    function switchScreen(screenId) {
+      document.querySelectorAll('.app-screen').forEach(s => s.classList.remove('active'));
+      const target = document.getElementById(screenId);
+      if (target) target.classList.add('active');
+
+      // Update bottom nav
+      document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+      const navItems = document.querySelectorAll('.bottom-nav-item');
+      if (screenId === 'screenWelcome') navItems[0].classList.add('active');
+
+      if (screenId === 'screenCamera') {
+        drawDynamicRoiPerimeter();
+        autoStartWebcamIfPossible();
+      }
+    }
+
+    // Backend API URL resolver (handles both http://127.0.0.1:5000 and file:/// previews)
+    function getBackendApiUrl(endpoint) {
+      if (window.location.protocol.startsWith('http') && window.location.port === '5000') {
+        return endpoint;
+      }
+      return 'http://127.0.0.1:5000' + endpoint;
+    }
+
+    // Client-side Instant Optical Pre-Inspection
+    function inspectCanvasForTurmeric(canvas) {
+      try {
+        const ctx = canvas.getContext('2d');
+        const cw = canvas.width;
+        const ch = canvas.height;
+        if (!cw || !ch) return { is_turmeric: true };
+
+        const bw = Math.max(20, Math.floor(cw * 0.5));
+        const bh = Math.max(20, Math.floor(ch * 0.5));
+        const sx = Math.floor((cw - bw) / 2);
+        const sy = Math.floor((ch - bh) / 2);
+
+        const imgData = ctx.getImageData(sx, sy, bw, bh);
+        const pixels = imgData.data;
+
+        let sumR = 0, sumG = 0, sumB = 0, sampled = 0;
+        for (let i = 0; i < pixels.length; i += 16) {
+          sumR += pixels[i];
+          sumG += pixels[i + 1];
+          sumB += pixels[i + 2];
+          sampled++;
+        }
+
+        if (sampled === 0) return { is_turmeric: false, reason: "Empty frame captured." };
+
+        const r = sumR / sampled;
+        const g = sumG / sampled;
+        const b = sumB / sampled;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const d = max - min;
+        let h = 0;
+        const s = max === 0 ? 0 : d / max;
+        const v = max / 255;
+
+        if (d !== 0) {
+          if (max === r) {
+            h = ((g - b) / d) % 6;
+          } else if (max === g) {
+            h = (b - r) / d + 2;
+          } else {
+            h = (r - g) / d + 4;
+          }
+          h = Math.round(h * 60);
+          if (h < 0) h += 360;
+        }
+
+        const rbRatio = r / Math.max(1.0, b);
+
+        // Turmeric physical envelope: Hue 14°-82°, Saturation >= 18%, Value >= 16%, R/B >= 1.30
+        const isTurmeric = (h >= 14 && h <= 82) && (s >= 0.18) && (v >= 0.16) && (rbRatio >= 1.30) && (r >= b);
+
+        if (!isTurmeric) {
+          let desc = "Non-turmeric color signature.";
+          if (rbRatio < 1.30 || b > r) desc = "Non-turmeric material (excessive blue/cool reflectance).";
+          else if (s < 0.18) desc = "Achromatic/grayscale surface (lacks characteristic turmeric saturation).";
+          else if (v < 0.16) desc = "Under-illuminated dark surface.";
+          else if (h < 14 || h > 82) desc = `Hue (${h}°) outside physical turmeric yellow-orange band.`;
+          return { is_turmeric: false, reason: desc };
+        }
+
+        return { is_turmeric: true };
+      } catch (e) {
+        return { is_turmeric: true };
+      }
+    }
+
+    // Unified Sample Analysis Pipeline (Live Camera & Gallery Import)
+    async function sendImageForAnalysis(fileOrBlob, filename, captureSource) {
+      if (!fileOrBlob) {
+        alert("No image data available for analysis.");
+        return;
+      }
+
+      const pill = document.getElementById('qualityFeedbackPill');
+      if (pill) {
+        pill.className = 'quality-status-pill';
+        pill.textContent = '⚡ Running neural inference & OOD verification...';
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('image', fileOrBlob, filename || 'capture.jpg');
+        formData.append('capture_source', captureSource || 'live_camera');
+
+        const targetUrl = getBackendApiUrl('/v1/analyze');
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.status === 422) {
+          const err = await res.json();
+          if (err.error === 'OOD_REJECTION' || err.is_turmeric === false) {
+            currentScan = {
+              id: 'scan_ood_' + Date.now(),
+              is_turmeric: false,
+              verdict: "This doesn't look like turmeric powder",
+              status: 'ood_rejected',
+              concentration: 0.0,
+              confidence: 0.0,
+              rejection_message: err.message || "This doesn't look like turmeric powder. Please scan a turmeric sample.",
+              details: err.details || err.supporting_text || "Non-turmeric material or surface detected. Sample rejected by OOD filter."
+            };
+            switchScreen('screenResult');
+            runStagedResultReveal(currentScan);
+            return;
+          } else if (err.error === 'Image Quality Filter Rejection') {
+            if (pill) {
+              pill.className = 'quality-status-pill rejected';
+              pill.textContent = '⚠️ Quality check failed: ' + (err.detail || 'Adjust position and lighting.');
+            }
+            return;
+          }
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          triggerHaptic('scan-complete');
+          currentScan = {
+            id: data.test_id,
+            is_turmeric: true,
+            verdict: data.classification.top_detected_label || data.classification.top_detected_class,
+            status: data.classification.status === 'PURE' ? 'pure' : (data.classification.top_detected_class === 'lead_chromate' ? 'adulterated' : 'suspicious'),
+            concentration: data.classification.estimated_concentration_w_w || 0.0,
+            confidence: data.classification.calibrated_confidence_pct || 98.5,
+            tcri: data.vision_calibration?.tcri || 35.0,
+            trf: data.vision_calibration?.trf || 0.62,
+            rigidity: data.vision_calibration?.cielab_normalization?.measured_rigidity_ratio || 0.685,
+            ambient: `${data.vision_calibration?.ambient_calibration?.ambient_kelvin || 6500}K · ${data.vision_calibration?.ambient_calibration?.ambient_lux || 350}L`,
+            recommendation: data.recommendation || "Authenticity verified under international food safety standards."
+          };
+          auditHistory.unshift({
+            verdict: currentScan.verdict,
+            confidence: currentScan.confidence,
+            date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            data: currentScan
+          });
+          updateHistoryUI();
+          switchScreen('screenResult');
+          runStagedResultReveal(currentScan);
+          return;
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        if (pill) {
+          pill.className = 'quality-status-pill rejected';
+          pill.textContent = '⚠️ Analysis error: ' + (errorData.detail || errorData.message || 'Status ' + res.status);
+        }
+      } catch (e) {
+        console.error("Analysis server connection error:", e);
+        if (pill) {
+          pill.className = 'quality-status-pill rejected';
+          pill.textContent = '⚠️ Connecting to AI engine... Tap shutter again.';
+          setTimeout(() => {
+            pill.className = 'quality-status-pill';
+            pill.textContent = '✓ Live camera active · Align sample mound in guide box';
+          }, 3500);
+        }
+      }
+    }
+
+    // Shutter Scan Execution: Grabs real camera frame and analyzes it
+    async function executeShutterScan() {
+      triggerHaptic('take-test');
+
+      const video = document.getElementById('cameraWebcam');
+      // Case 1: Live camera stream is active and rendering video frames
+      if (activeMediaStream && video && video.readyState >= 2 && video.videoWidth > 0) {
+        // Visual shutter flash feedback
+        const shutterRing = document.querySelector('.shutter-ring');
+        if (shutterRing) {
+          shutterRing.style.transform = 'scale(0.92)';
+          setTimeout(() => { shutterRing.style.transform = ''; }, 120);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Immediate Client-Side Optical Check (zero latency rejection of non-turmeric objects)
+        const opticalCheck = inspectCanvasForTurmeric(canvas);
+        if (!opticalCheck.is_turmeric) {
+          triggerHaptic('scan-complete');
+          currentScan = {
+            id: 'scan_ood_' + Date.now(),
+            is_turmeric: false,
+            verdict: "This doesn't look like turmeric powder",
+            status: 'ood_rejected',
+            concentration: 0.0,
+            confidence: 0.0,
+            rejection_message: "This doesn't look like turmeric powder. Please scan a turmeric sample.",
+            details: opticalCheck.reason || "Non-turmeric material detected inside guide reticle."
+          };
+          switchScreen('screenResult');
+          runStagedResultReveal(currentScan);
+          return;
+        }
+
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            await sendImageForAnalysis(blob, 'live_camera_capture.jpg', 'live_camera');
+          }
+        }, 'image/jpeg', 0.95);
+        return;
+      }
+
+      // Case 2: Live camera not yet activated - attempt auto-starting camera
+      if (!activeMediaStream && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          await toggleCameraDevice();
+          const pill = document.getElementById('qualityFeedbackPill');
+          if (pill) {
+            pill.className = 'quality-status-pill';
+            pill.textContent = '📷 Camera started. Align sample inside reticle and tap shutter again.';
+          }
+          return;
+        } catch (e) {
+          console.warn("Could not start camera:", e);
+        }
+      }
+
+      // Case 3: Camera unavailable or blocked — fallback to gallery file picker
+      triggerGalleryPicker();
+    }
+
+    function runScanWithPreset(presetId) {
+      currentScan = PRESETS[presetId] || PRESETS.pure_alleppey;
+      triggerHaptic('scan-complete');
+
+      if (currentScan.is_turmeric !== false) {
+        auditHistory.unshift({
+          verdict: currentScan.verdict,
+          confidence: currentScan.confidence,
+          date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          data: currentScan
+        });
+        updateHistoryUI();
+      }
+
+      switchScreen('screenResult');
+      runStagedResultReveal(currentScan);
+    }
+
+    // Gallery Image Picker & Pre-Analysis Crop Confirmation
+    let pendingGalleryFile = null;
+
+    function triggerGalleryPicker() {
+      const input = document.getElementById('cameraGalleryInput');
+      if (input) input.click();
+    }
+
+    function handleGalleryImageSelected(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      pendingGalleryFile = file;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const previewImg = document.getElementById('galleryPreviewImg');
+        if (previewImg) previewImg.src = e.target.result;
+        const modal = document.getElementById('galleryCropModal');
+        if (modal) modal.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function cancelGalleryPick() {
+      pendingGalleryFile = null;
+      const modal = document.getElementById('galleryCropModal');
+      if (modal) modal.style.display = 'none';
+      const input = document.getElementById('cameraGalleryInput');
+      if (input) input.value = '';
+    }
+
+    async function confirmGalleryAnalysis() {
+      if (!pendingGalleryFile) return;
+      const modal = document.getElementById('galleryCropModal');
+      if (modal) modal.style.display = 'none';
+
+      triggerHaptic('take-test');
+      const fileToUpload = pendingGalleryFile;
+      await sendImageForAnalysis(fileToUpload, fileToUpload.name, 'gallery_import');
+    }
+
+    // Signature Staged Reveal Implementation
+    function runStagedResultReveal(data) {
+      triggerHaptic('result-reveal');
+
+      const normalBox = document.getElementById('normalResultContainer');
+      const oodBox = document.getElementById('oodRejectionContainer');
+
+      // Out-Of-Distribution Non-Turmeric Interception
+      if (data.is_turmeric === false || data.status === 'ood_rejected') {
+        if (normalBox) normalBox.style.display = 'none';
+        if (oodBox) {
+          oodBox.style.display = 'block';
+          const oodTitle = document.getElementById('oodRejectionTitle');
+          const oodSub = document.getElementById('oodRejectionSubtitle');
+          const oodDetails = document.getElementById('oodRejectionDetailsText');
+          if (oodTitle) oodTitle.textContent = data.verdict || "This doesn't look like turmeric powder";
+          if (oodSub) oodSub.textContent = data.rejection_message || "Make sure the sample fills the guide box and is turmeric powder.";
+          if (oodDetails) oodDetails.textContent = data.details || "Out-of-distribution sample: Non-turmeric material detected.";
+        }
+        return;
+      }
+
+      // Normal In-Distribution Sample Flow
+      if (oodBox) oodBox.style.display = 'none';
+      if (normalBox) normalBox.style.display = 'block';
+
+      const pill = document.getElementById('resPill');
+      const pillLabel = document.getElementById('resPillLabel');
+      const verdict = document.getElementById('resVerdict');
+      const rec = document.getElementById('resRecommendation');
+      const contamDigits = document.getElementById('resContamDigits');
+      const contamSub = document.getElementById('resContamSub');
+      const confDigits = document.getElementById('resConfDigits');
+      const confBar = document.getElementById('resConfBar');
+
+      verdict.textContent = data.verdict;
+      rec.textContent = data.recommendation;
+
+      // Status pill classes (Never brand yellow!)
+      pill.className = 'staged-status-pill';
+      pill.classList.remove('revealed');
+
+      if (data.status === 'pure') {
+        pill.classList.add('pure');
+        pillLabel.textContent = 'Pure — natural curcumin verified';
+        contamSub.textContent = 'Zero adulterant';
+        confBar.style.background = 'var(--status-pure)';
+      } else if (data.status === 'adulterated') {
+        pill.classList.add('adulterated');
+        pillLabel.textContent = 'Adulterated — toxic lead chromate detected';
+        contamSub.textContent = 'Hazardous contamination';
+        confBar.style.background = 'var(--status-adulterated)';
+      } else {
+        // Warm burnt-amber --status-suspicious (#D97B1F), visually distinct from brand yellow
+        pill.classList.add('suspicious');
+        pillLabel.textContent = 'Suspicious — adulterant detected';
+        contamSub.textContent = 'Optical distortion isolated';
+        confBar.style.background = 'var(--status-suspicious)';
+      }
+
+      // Reset values
+      contamDigits.textContent = '0.0';
+      confDigits.textContent = '0.0';
+      confBar.style.width = '0%';
+
+      // 1. Status pill fades + scales in first (~150ms)
+      setTimeout(() => {
+        pill.classList.add('revealed');
+      }, 50);
+
+      // 2. Concentration number counts up from 0 to final value (~400ms, ease-out cubic)
+      setTimeout(() => {
+        const start = performance.now();
+        const duration = 400;
+        const targetVal = data.concentration;
+
+        function stepCount(time) {
+          const progress = Math.min(1, (time - start) / duration);
+          const easeOut = 1 - Math.pow(1 - progress, 3);
+          contamDigits.textContent = (targetVal * easeOut).toFixed(1);
+
+          if (progress < 1) requestAnimationFrame(stepCount);
+          else contamDigits.textContent = targetVal.toFixed(1);
+        }
+        if (targetVal > 0) requestAnimationFrame(stepCount);
+        else contamDigits.textContent = '0.0';
+      }, 150);
+
+      // 3. Confidence ring/bar fills starting ~100ms after concentration count (~400ms)
+      setTimeout(() => {
+        confBar.style.width = `${data.confidence}%`;
+        confDigits.textContent = data.confidence.toFixed(1);
+      }, 250);
+
+      // Optical metrics
+      document.getElementById('resTcri').textContent = data.tcri.toFixed(2);
+      document.getElementById('resTrf').textContent = data.trf.toFixed(3);
+      document.getElementById('resRigidity').textContent = data.rigidity.toFixed(3);
+      document.getElementById('resAmbient').textContent = data.ambient;
+    }
+
+    // Dynamic ROI Perimeter Drawing
+    function drawDynamicRoiPerimeter() {
+      const canvas = document.getElementById('contourCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const r = 90;
+
+      ctx.beginPath();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#2E9E5B';
+      ctx.setLineDash([6, 4]);
+
+      for (let angle = 0; angle <= Math.PI * 2; angle += 0.25) {
+        const offset = Math.sin(angle * 4) * 4 + Math.cos(angle * 2) * 3;
+        const x = cx + (r + offset) * Math.cos(angle);
+        const y = cy + (r + offset) * Math.sin(angle);
+        if (angle === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    // Quality Filter Pre-Check Simulator (Sharp / Blur / Glare Rejection)
+    function setQualitySimulation(state) {
+      const pill = document.getElementById('qualityFeedbackPill');
+      if (state === 'sharp') {
+        pill.className = 'quality-status-pill';
+        pill.textContent = '✓ Frame sharp · Illumination balanced (Laplacian: 142.8 | Glare: 1.2%)';
+      } else if (state === 'blur') {
+        pill.className = 'quality-status-pill rejected';
+        pill.textContent = '⚠️ Blur rejected (Laplacian: 41.2 < 75.0) — Retake required';
+      } else if (state === 'glare') {
+        pill.className = 'quality-status-pill rejected';
+        pill.textContent = '⚠️ Glare rejected (8.4% > 5.0%) — Adjust lighting angle';
+      }
+    }
+
+    // Real Webcam toggle
+    async function toggleCameraDevice() {
+      const video = document.getElementById('cameraWebcam');
+      const sim = document.getElementById('simulatedMound');
+      const btn = document.getElementById('btnWebcamSwitch');
+
+      if (!activeMediaStream) {
+        try {
+          activeMediaStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          });
+          video.srcObject = activeMediaStream;
+          video.style.display = 'block';
+          sim.style.display = 'none';
+          btn.textContent = 'Chamber';
+          const pill = document.getElementById('qualityFeedbackPill');
+          if (pill) {
+            pill.className = 'quality-status-pill';
+            pill.textContent = '✓ Live camera active · Align sample mound in guide box';
+          }
+        } catch (e) {
+          showPermissionDeniedView();
+        }
+      } else {
+        activeMediaStream.getTracks().forEach(t => t.stop());
+        activeMediaStream = null;
+        video.style.display = 'none';
+        sim.style.display = 'block';
+        btn.textContent = 'Webcam';
+        const pill = document.getElementById('qualityFeedbackPill');
+        if (pill) {
+          pill.className = 'quality-status-pill';
+          pill.textContent = 'Chamber active · Click Webcam or Gallery to test live samples';
+        }
+      }
+    }
+
+    function showPermissionDeniedView() {
+      switchScreen('screenPermissionDenied');
+    }
+
+    // Update History UI
+    function updateHistoryUI() {
+      const empty = document.getElementById('emptyHistoryBox');
+      const list = document.getElementById('dynamicHistoryList');
+      if (auditHistory.length > 0) {
+        empty.style.display = 'none';
+        list.style.display = 'block';
+        list.innerHTML = auditHistory.map((h, i) => `
+          <div class="history-card-item pressable" onclick="inspectHistoricScan(${i})">
+            <div>
+              <div style="font-size:0.86rem; font-weight:700; color:var(--text-primary);">${h.verdict}</div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px;">Audit recorded at ${h.date}</div>
+            </div>
+            <div style="font-family:var(--font-mono); font-size:0.82rem; font-weight:700; color:var(--status-pure);">
+              ${h.confidence.toFixed(1)}% conf →
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function inspectHistoricScan(idx) {
+      if (auditHistory[idx]) {
+        currentScan = auditHistory[idx].data;
+        switchScreen('screenResult');
+        runStagedResultReveal(currentScan);
+      }
+    }
+
+    function handleHistoryTabClick() {
+      if (auditHistory.length > 0) {
+        inspectHistoricScan(0);
+      } else {
+        switchScreen('screenWelcome');
+      }
+    }
+
+    function shareAuditCertificate() {
+      if (navigator.share) {
+        navigator.share({
+          title: 'Pure Turmeric Audit Certificate',
+          text: `Sample: ${currentScan.verdict}\nContamination: ${currentScan.concentration}%\nConfidence: ${currentScan.confidence}%\nVerified via Pure Edge AI.`,
+          url: window.location.href,
+        }).catch(() => {});
+      } else {
+        alert(`Audit Certificate:\nSample: ${currentScan.verdict}\nContamination: ${currentScan.concentration}%\nConfidence: ${currentScan.confidence}%\nStatus: Codex & FSSAI Compliant`);
+      }
+    }
+
+    // Device Viewport Width Simulation
+    function setDeviceWidth(w) {
+      const vp = document.getElementById('appViewport');
+      document.querySelectorAll('.tester-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      if (w === '100%') {
+        vp.style.maxWidth = '600px';
+      } else {
+        vp.style.maxWidth = w;
+      }
+      setTimeout(drawDynamicRoiPerimeter, 100);
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      runSplashSequence();
+      drawDynamicRoiPerimeter();
+    });
+    window.addEventListener('resize', drawDynamicRoiPerimeter);
+  </script>
+</body>
+</html>

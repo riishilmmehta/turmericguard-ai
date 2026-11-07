@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "TurmericGuard AI",
+    "slug": "turmericguard-ai",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#080b11"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.foodsafety.turmericguard",
+      "infoPlist": {
+        "NSCameraUsageDescription": "TurmericGuard AI requires camera access to scan turmeric powder mounds and perform edge food safety screening."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#080b11"
+      },
+      "package": "org.foodsafety.turmericguard",
+      "permissions": [
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
+

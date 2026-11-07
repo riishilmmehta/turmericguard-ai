@@ -1,0 +1,105 @@
+/**
+ * TurmericGuard AI — Animation System (Section 8.2)
+ * Purposeful, high-credibility animations:
+ * - Multi-stage pipeline sequence progression
+ * - Optical enclosure scanning beam
+ * - Radial spring gauge transitions
+ * - Pulse glows and state change reveals
+ */
+
+/* Scanning Ray Animation for Sensor Chamber */
+@keyframes opticalScan {
+  0% {
+    top: 0%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 96%;
+    opacity: 1;
+  }
+  100% {
+    top: 0%;
+    opacity: 0.8;
+  }
+}
+
+.sensor-active-scan::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold-primary), transparent);
+  box-shadow: 0 0 14px var(--gold-primary);
+  animation: opticalScan 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Pulsing Status Dot */
+@keyframes statusPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.pulse-pure {
+  animation: statusPulse 2s infinite;
+}
+
+/* Stage Step Progress Pulse */
+@keyframes stepPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(232, 163, 61, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(232, 163, 61, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(232, 163, 61, 0);
+  }
+}
+
+.stage-step.active {
+  animation: stepPulse 1.4s infinite;
+}
+
+/* One-Shot Card Reveal */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Loading Shimmer for Skeleton States */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+}
