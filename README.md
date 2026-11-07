@@ -100,7 +100,27 @@ python -m pytest tests/test_api.py -v
 
 ---
 
-## 6. Directory Structure
+## 6. Cloud Deployment & Live Backend Integration
+
+To deploy the production Python backend (FastAPI + INT8 MultiTaskCNN + OOD Detector) so that live visitors on GitHub Pages or mobile devices receive real-time neural inferences:
+
+### Option A: Render (Zero-Config 1-Click Deploy)
+This repository includes a native `render.yaml` Blueprint.
+1. Sign up / Log in to [Render](https://render.com).
+2. Connect your GitHub repository: `https://github.com/riishilmmehta/turmericguard-ai`.
+3. Render automatically provisions the web service (`uvicorn app:app --host 0.0.0.0 --port $PORT`).
+4. Set the deployed URL as `PRODUCTION_BACKEND_URL` in `templates/index.html` (default: `https://turmericguard-ai-backend.onrender.com`).
+
+### Option B: Hugging Face Spaces (Docker Space)
+1. Create a new Space on [Hugging Face](https://huggingface.co/new-space) using SDK: `Docker`.
+2. Connect or push this repository; Hugging Face uses the included `Dockerfile`.
+
+### Option C: Railway or Fly.io
+1. Deploy using the included `Procfile` and `Dockerfile`.
+
+---
+
+## 7. Directory Structure
 ```
 turmericguard-ai/
 ├── app.py                      # FastAPI server with all Section 7.2 endpoints

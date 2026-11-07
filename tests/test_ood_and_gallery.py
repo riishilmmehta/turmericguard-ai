@@ -358,3 +358,44 @@ def test_react_native_edge_service_rejects_missing_image_without_hallucinating()
     assert "if (!imageUri && !options.presetId)" in content, "Missing null imageUri rejection guard!"
     assert "NO_IMAGE_PROVIDED" in content, "Missing NO_IMAGE_PROVIDED error code!"
 
+
+def test_gallery_path_includes_client_side_ood_inspection():
+    """Verify both index.html and templates/index.html run client-side OOD inspection on gallery imports."""
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for filename in ['index.html', os.path.join('templates', 'index.html')]:
+        filepath = os.path.join(root_dir, filename)
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        assert "confirmGalleryAnalysis" in content, f"{filename} missing confirmGalleryAnalysis!"
+        assert "inspectCanvasForTurmeric(offscreenCanvas)" in content, f"{filename} missing client-side OOD check on gallery path!"
+        assert "backendUnavailableContainer" in content, f"{filename} missing backendUnavailableContainer!"
+        assert "demoSimulationBanner" in content, f"{filename} missing demoSimulationBanner!"
+
+
+def test_mobile_apps_visibly_label_demo_presets():
+    """Verify React Native and Flutter mobile apps visibly label preset data as illustrative."""
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    rn_service = os.path.join(root_dir, 'mobile_app', 'react_native', 'src', 'services', 'EdgeInferenceService.js')
+    rn_dash = os.path.join(root_dir, 'mobile_app', 'react_native', 'src', 'components', 'VerificationDashboard.js')
+    flutter_cam = os.path.join(root_dir, 'mobile_app', 'flutter', 'lib', 'screens', 'camera_screen.dart')
+    flutter_dash = os.path.join(root_dir, 'mobile_app', 'flutter', 'lib', 'screens', 'verification_dashboard.dart')
+
+    with open(rn_service, 'r', encoding='utf-8') as f:
+        rn_s_code = f.read()
+    assert "is_demo_preset: true" in rn_s_code
+    assert "Demo Preset (Illustrative)" in rn_s_code
+
+    with open(rn_dash, 'r', encoding='utf-8') as f:
+        rn_d_code = f.read()
+    assert "demoPresetBanner" in rn_d_code
+    assert "Demo preset only" in rn_d_code
+
+    with open(flutter_cam, 'r', encoding='utf-8') as f:
+        fl_c_code = f.read()
+    assert "'is_demo_preset': true" in fl_c_code
+
+    with open(flutter_dash, 'r', encoding='utf-8') as f:
+        fl_d_code = f.read()
+    assert "Demo preset only" in fl_d_code
+

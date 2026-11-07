@@ -5,12 +5,48 @@
  * Resilient to both live HTTP server and local file:// preview environments.
  */
 
-// Dynamic Protocol Resolution (Works on both http://127.0.0.1:5000 and local file://)
+// Dynamic Protocol Resolution (Works on live production backend, local server, and file:// preview)
+const PRODUCTION_BACKEND_URL = 'https://turmericguard-ai-backend.onrender.com';
+
+function resolveApiBase() {
+  if (typeof window !== 'undefined' && window.TURMERICGUARD_API_URL) {
+    return window.TURMERICGUARD_API_URL.replace(/\/+$/, '');
+  }
+  try {
+    const stored = localStorage.getItem('TURMERICGUARD_API_URL');
+    if (stored) return stored.replace(/\/+$/, '');
+  } catch (_) {}
+  if (typeof window !== 'undefined' && window.location && window.location.search) {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('api')) return p.get('api').replace(/\/+$/, '');
+  }
+  if (window.location.protocol.startsWith('http') && window.location.port === '5000') {
+    return '';
+  }
+  if (window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+    return 'http://127.0.0.1:5000';
+  }
+  return PRODUCTION_BACKEND_URL;
+}
+
+const API_BASE = resolveApiBase();
 const isLocalFile = window.location.protocol === 'file:';
-const API_BASE = isLocalFile ? 'http://127.0.0.1:5000' : '';
 const ASSET_BASE = isLocalFile 
   ? (window.location.pathname.includes('/templates/') || window.location.pathname.includes('\\templates\\') ? '../static' : 'static')
   : '/static';
+
+// Demo Preview Banner Control
+function showDemoSimulationBanner(show) {
+  let banner = document.getElementById('demoSimulationBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'demoSimulationBanner';
+    banner.style.cssText = 'background:#FEF3C7; border-bottom:1.5px solid #F59E0B; color:#92400E; padding:10px 16px; font-size:0.85rem; font-weight:700; text-align:center; position:sticky; top:0; z-index:99999; box-shadow:0 2px 10px rgba(0,0,0,0.08);';
+    banner.innerHTML = '⚠️ Demo preview only — results are illustrative, not live analysis';
+    document.body.prepend(banner);
+  }
+  banner.style.display = show ? 'block' : 'none';
+}
 
 // SVG Sample Fallback placeholder
 const TURMERIC_SVG_FALLBACK = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
@@ -325,7 +361,8 @@ async function runAnalysis() {
     let data;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1200);
+      const timeoutMs = appState.selectedFile ? 15000 : 4000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       if (appState.selectedFile) {
         const formData = new FormData();
@@ -346,11 +383,77 @@ async function runAnalysis() {
         });
       }
       clearTimeout(timeoutId);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      data = await response.json();
+      if (!response.ok) {
+        if (response.status === 422) {
+          const errData = await response.json();
+          if (errData.error === 'OOD_REJECTION' || errData.is_turmeric === false) {
+            data = {
+              is_turmeric: false,
+              test_id: 'OOD-REJECTED',
+              classification: {
+                status: 'REJECTED',
+                badge_text: 'REJECTED: NON-TURMERIC',
+                purity_score: 0.0,
+                top_detected_label: "This doesn't look like turmeric powder"
+              },
+              recommendation: {
+                headline: "This doesn't look like turmeric powder. Please scan a turmeric sample.",
+                action: 'SAMPLE REJECTED',
+                next_steps: [
+                  'Make sure the sample fills the guide box and is turmeric powder.',
+                  'Out-of-distribution item rejected by the two-tier OOD detector.',
+                  'No purity or contamination percentages are computed for non-turmeric items.'
+                ]
+              },
+              explainability: {
+                executive_summary: errData.details || "Sample rejected: Chromaticity and spectral profile fall completely outside the natural turmeric envelope."
+              },
+              traceability: { qr_code_url: TURMERIC_SVG_FALLBACK, verify_url: '#' },
+              conformal_calibration: null
+            };
+          } else {
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } else {
+        data = await response.json();
+        showDemoSimulationBanner(false);
+      }
     } catch (networkErr) {
-      console.warn('Backend API unreachable or timed out, using instant simulation fallback:', networkErr);
-      data = getClientSimulationFallback(appState.currentPreset || 'pure_alleppey', lotNumber, deviceId);
+      if (appState.selectedFile) {
+        console.error('Backend unreachable for uploaded file:', networkErr);
+        data = {
+          error: 'BACKEND_UNAVAILABLE',
+          is_turmeric: false,
+          test_id: 'BACKEND-OFFLINE',
+          classification: {
+            status: 'UNAVAILABLE',
+            badge_text: 'BACKEND UNAVAILABLE',
+            purity_score: 0.0,
+            top_detected_label: 'Backend Unavailable — Cannot Analyze Image'
+          },
+          recommendation: {
+            headline: 'Backend Unavailable — Cannot Analyze This Image',
+            action: 'CHECK BACKEND CONNECTION',
+            next_steps: [
+              'The AI inference backend is offline or unreachable at ' + API_BASE,
+              'Real image analysis requires an active neural model backend to ensure zero false assurances.',
+              'TurmericGuard AI never fabricates a purity verdict when disconnected from the model.',
+              'Verify that app.py is running or launch: python app.py'
+            ]
+          },
+          explainability: {
+            executive_summary: 'Inference skipped: Neural adulteration classifier (INT8 MultiTaskCNN) is offline. No test result generated.'
+          },
+          traceability: { qr_code_url: TURMERIC_SVG_FALLBACK, verify_url: '#' },
+          conformal_calibration: null
+        };
+      } else {
+        console.warn('Backend API unreachable, using illustrative preset demo data:', networkErr);
+        data = getCuratedPresetDemoData(appState.currentPreset || 'pure_alleppey', lotNumber, deviceId);
+      }
     }
 
     // Stage 3: Multi-Model Inference
@@ -413,6 +516,48 @@ function renderResultShowcase(res) {
   if (badgeEl) {
     badgeEl.className = `status-badge-lg ${status.toLowerCase()}`;
     badgeEl.textContent = cls.badge_text;
+    if (res.is_simulated_demo && !badgeEl.textContent.includes('DEMO')) {
+      badgeEl.textContent += ' [DEMO PREVIEW]';
+    }
+  }
+
+  // Handle banner for demo presets vs real results
+  if (res.is_simulated_demo) {
+    showDemoSimulationBanner(true);
+  } else {
+    showDemoSimulationBanner(false);
+  }
+
+  if (status === 'UNAVAILABLE') {
+    if (heroCard) heroCard.className = 'result-hero-card status-adulterated fade-in-up';
+    if (badgeEl) {
+      badgeEl.className = 'status-badge-lg adulterated';
+      badgeEl.textContent = 'BACKEND UNAVAILABLE';
+    }
+    const confEl = document.getElementById('conformalIntervalText');
+    if (confEl) confEl.innerHTML = '<span style="color:#ef4444; font-weight:700;">Live neural backend unreachable — test result withheld</span>';
+    if (purityGauge) purityGauge.animateTo(0);
+    const headEl = document.getElementById('heroHeadline');
+    if (headEl) headEl.textContent = res.recommendation?.headline || 'Backend Unavailable';
+    const explainEl = document.getElementById('executiveExplanationText');
+    if (explainEl) explainEl.textContent = res.explainability?.executive_summary || 'Cannot execute neural inference without an active backend.';
+    return;
+  }
+
+  if (status === 'REJECTED' || res.is_turmeric === false) {
+    if (heroCard) heroCard.className = 'result-hero-card status-suspicious fade-in-up';
+    if (badgeEl) {
+      badgeEl.className = 'status-badge-lg suspicious';
+      badgeEl.textContent = 'REJECTED: NON-TURMERIC';
+    }
+    const confEl = document.getElementById('conformalIntervalText');
+    if (confEl) confEl.innerHTML = '<span style="color:#d97b1f; font-weight:700;">Sample rejected by OOD filter — not turmeric powder</span>';
+    if (purityGauge) purityGauge.animateTo(0);
+    const headEl = document.getElementById('heroHeadline');
+    if (headEl) headEl.textContent = res.recommendation?.headline || "This doesn't look like turmeric powder";
+    const explainEl = document.getElementById('executiveExplanationText');
+    if (explainEl) explainEl.textContent = res.explainability?.executive_summary || "Sample rejected: Chromaticity and spectral profile fall completely outside the natural turmeric envelope.";
+    return;
   }
 
   // 2. Headline
@@ -838,8 +983,12 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Client-Side Simulation Fallback Data (When Backend is Offline or file:// restricted)
-function getClientSimulationFallback(presetKey, lotNumber, deviceId) {
+// Curated Preset Demonstration Data (Illustrative samples only — never for uploaded photos)
+function getCuratedPresetDemoData(presetKey, lotNumber, deviceId) {
+  const allowedPresets = ['pure_alleppey', 'lead_chromate_8pct', 'metanil_yellow_5pct', 'chalk_filler_15pct', 'borderline_suspicious'];
+  if (!presetKey || !allowedPresets.includes(presetKey)) {
+    throw new Error("Cannot simulate non-preset samples. Real uploaded images require live backend inference.");
+  }
   const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
   const testId = `TG-${Date.now().toString().substring(5, 13)}`;
 
@@ -847,6 +996,8 @@ function getClientSimulationFallback(presetKey, lotNumber, deviceId) {
 
   if (presetKey === 'lead_chromate_8pct') {
     return {
+      is_simulated_demo: true,
+      data_source: "DEMO PREVIEW ONLY — Illustrative data, not live edge inference",
       test_id: testId,
       timestamp: now,
       lot_number: lotNumber,
@@ -886,6 +1037,8 @@ function getClientSimulationFallback(presetKey, lotNumber, deviceId) {
     };
   } else if (presetKey === 'metanil_yellow_5pct') {
     return {
+      is_simulated_demo: true,
+      data_source: "DEMO PREVIEW ONLY — Illustrative data, not live edge inference",
       test_id: testId,
       timestamp: now,
       lot_number: lotNumber,
@@ -924,6 +1077,8 @@ function getClientSimulationFallback(presetKey, lotNumber, deviceId) {
     };
   } else if (presetKey === 'chalk_filler_15pct') {
     return {
+      is_simulated_demo: true,
+      data_source: "DEMO PREVIEW ONLY — Illustrative data, not live edge inference",
       test_id: testId,
       timestamp: now,
       lot_number: lotNumber,
@@ -962,6 +1117,8 @@ function getClientSimulationFallback(presetKey, lotNumber, deviceId) {
     };
   } else if (presetKey === 'borderline_suspicious') {
     return {
+      is_simulated_demo: true,
+      data_source: "DEMO PREVIEW ONLY — Illustrative data, not live edge inference",
       test_id: testId,
       timestamp: now,
       lot_number: lotNumber,
@@ -1001,7 +1158,7 @@ function getClientSimulationFallback(presetKey, lotNumber, deviceId) {
   }
 
   // Default: Pure Alleppey
-  return {
+  const pureData = {
     test_id: testId,
     timestamp: now,
     lot_number: lotNumber,
@@ -1039,6 +1196,15 @@ function getClientSimulationFallback(presetKey, lotNumber, deviceId) {
     spectral_signature: { wavelengths: wl, reflectance: [0.18, 0.15, 0.15, 0.17, 0.24, 0.36, 0.55, 0.72, 0.82, 0.87, 0.89, 0.91, 0.92, 0.93, 0.94, 0.95, 0.95, 0.96, 0.96, 0.97, 0.97, 0.97], curcumin_ratio: 1.18 },
     traceability: { block_index: 88, block_hash: '9a5c81b2e3f7401d817294bbca02419c90f235b02f8', prev_hash: 'f03847ab28491c84910247ab18247910cb481234', qr_code_url: TURMERIC_SVG_FALLBACK, verify_url: `http://127.0.0.1:5000/v1/traceability/${testId}` }
   };
+  pureData.is_simulated_demo = true;
+  pureData.data_source = "DEMO PREVIEW ONLY — Illustrative data, not live edge inference";
+  return pureData;
+}
+
+// Deprecated alias for backward compatibility — delegates to getCuratedPresetDemoData
+function getClientSimulationFallback(presetKey, lotNumber, deviceId) {
+  console.warn("getClientSimulationFallback is deprecated. Using getCuratedPresetDemoData.");
+  return getCuratedPresetDemoData(presetKey, lotNumber, deviceId);
 }
 
 // --- Interactive Modals & Utility Controls ---

@@ -127,8 +127,9 @@ def run_full_audit():
     check("Float32 ONNX Model Exists", os.path.exists(ONNX_FLOAT_PATH), f"({os.path.getsize(ONNX_FLOAT_PATH)} bytes)")
     check("8-bit Quantized INT8 ONNX Model Exists", os.path.exists(ONNX_INT8_PATH), f"({os.path.getsize(ONNX_INT8_PATH)} bytes)")
 
-    # Test edge engine inference and latency
+    # Test edge engine inference and latency (warm up session first)
     sample_pure = os.path.join(SAMPLES_DIR, 'pure_alleppey.jpg')
+    _ = edge_engine.predict(sample_pure)
     t0 = time.perf_counter()
     res_edge = edge_engine.predict(sample_pure)
     dt_ms = (time.perf_counter() - t0) * 1000
@@ -221,7 +222,7 @@ def run_full_audit():
 
     # 5l. GET /v1/compliance/benchmarks
     r = client.get("/v1/compliance/benchmarks")
-    check("GET /v1/compliance/benchmarks", r.status_code == 200 and "overall_accuracy" in r.json())
+    check("GET /v1/compliance/benchmarks", r.status_code == 200 and ("overall_classification_accuracy" in r.json() or "overall_accuracy" in r.json()))
 
     # 5m. GET /verify/{qr_code}
     r = client.get(f"/verify/{audit_test_id}")

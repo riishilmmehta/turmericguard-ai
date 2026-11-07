@@ -52,7 +52,7 @@ class VerificationDashboard extends StatelessWidget {
                 const CircleAvatar(radius: 3, backgroundColor: Color(0xFF38BDF8)),
                 const SizedBox(width: 6),
                 Text(
-                  '${latency.toStringAsFixed(1)}ms',
+                  data['is_demo_preset'] == true ? 'Demo Preset' : '${latency.toStringAsFixed(1)}ms',
                   style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -65,6 +65,28 @@ class VerificationDashboard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (data['is_demo_preset'] == true)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF59E0B)),
+                ),
+                child: const Row(
+                  children: [
+                    Text('⚠️ ', style: TextStyle(fontSize: 14)),
+                    Expanded(
+                      child: Text(
+                        'Demo preset only — results are illustrative, not live analysis',
+                        style: TextStyle(color: Color(0xFF92400E), fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // Verdict Card
             Container(
               padding: const EdgeInsets.all(20),

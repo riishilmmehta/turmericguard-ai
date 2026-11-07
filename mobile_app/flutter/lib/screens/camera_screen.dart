@@ -38,10 +38,12 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
     if (!mounted) return;
     setState(() => _isAnalyzing = false);
 
-    // Sample payload
+    // Sample payload (Demo Preset)
     final sampleResult = {
       'verdict': presetId == 'lead' ? 'Lead Chromate (PbCrO₄)' : 'Authentic Pure Turmeric',
       'is_pure': presetId != 'lead',
+      'is_demo_preset': true,
+      'data_source': 'DEMO PRESET — Illustrative data, not live edge inference',
       'concentration_pct': presetId == 'lead' ? 8.4 : 0.0,
       'confidence_score_pct': 98.7,
       'latency_ms': 19.2,
@@ -50,7 +52,7 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
       'rigidity_ratio': 0.685,
       'ambient_lux': 380.0,
       'ambient_kelvin': 6500.0,
-      'model_format': 'ONNX-INT8 (Edge NPU Native)',
+      'model_format': 'Demo Preset (Illustrative)',
       'class_probabilities': {
         'Pure': presetId == 'lead' ? 0.3 : 98.7,
         'Lead Chromate': presetId == 'lead' ? 98.4 : 0.4,

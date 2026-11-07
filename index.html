@@ -968,6 +968,11 @@
 </head>
 <body>
 
+  <!-- High-Visibility Demo Preview Banner -->
+  <div id="demoSimulationBanner" style="display:none; background:#FEF3C7; border-bottom:1.5px solid #F59E0B; color:#92400E; padding:10px 16px; font-size:0.82rem; font-weight:700; text-align:center; position:sticky; top:0; z-index:9999; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    ⚠️ Demo preview only — results are illustrative, not live analysis
+  </div>
+
   <!-- Responsive Width Testing Bar for Multi-Device Verification -->
   <div class="responsive-tester-bar" id="deviceTesterBar">
     <span style="font-weight:700;">Device preview:</span>
@@ -1273,6 +1278,25 @@
               <span id="oodRejectionDetailsText">Lacks characteristic turmeric yellow chromaticity (b* < 8.0). Out-of-distribution item rejected.</span>
             </div>
             <button class="empty-cta-btn pressable" style="width:100%; max-width:280px;" onclick="switchScreen('screenCamera')">Try again</button>
+          </div>
+        </div>
+
+        <!-- Designed Backend Unavailable State (Never Fabricate Results) -->
+        <div id="backendUnavailableContainer" style="display:none; width:100%;">
+          <div class="result-signature-card" style="text-align:center; padding:38px 22px;">
+            <div style="width:58px; height:58px; border-radius:29px; background:rgba(214, 69, 69, 0.1); border:1px solid var(--status-adulterated); display:inline-flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:16px;">
+              ⚠️
+            </div>
+            <h2 class="result-verdict-title" id="backendUnavailableTitle" style="font-size:1.35rem; margin-bottom:8px; color:var(--text-primary);">
+              Backend unavailable — cannot analyze this image
+            </h2>
+            <p class="result-recommendation-text" id="backendUnavailableSubtitle" style="max-width:340px; margin:0 auto 16px;">
+              The AI inference backend is offline or unreachable. Live neural screening requires an active inference server.
+            </p>
+            <div id="backendUnavailableDetailsBox" style="background:#FAFAFA; border:0.5px solid var(--border); border-radius:12px; padding:10px 14px; font-size:0.75rem; color:var(--text-secondary); max-width:340px; margin:0 auto 24px; text-align:left;">
+              <span id="backendUnavailableDetailsText">Zero false assurances: TurmericGuard AI never fabricates a purity verdict when disconnected from the multi-task CNN engine.</span>
+            </div>
+            <button class="empty-cta-btn pressable" style="width:100%; max-width:280px; margin-bottom:10px;" onclick="switchScreen('screenCamera')">Back to Camera</button>
           </div>
         </div>
 
@@ -1604,12 +1628,28 @@
       }
     }
 
-    // Backend API URL resolver (handles both http://127.0.0.1:5000 and file:/// previews)
+    // Backend API URL resolver (handles deployed production server, custom API overrides, local server, and file:/// previews)
+    const PRODUCTION_BACKEND_URL = 'https://turmericguard-ai-backend.onrender.com';
+
     function getBackendApiUrl(endpoint) {
+      if (typeof window !== 'undefined' && window.TURMERICGUARD_API_URL) {
+        return window.TURMERICGUARD_API_URL.replace(/\/+$/, '') + endpoint;
+      }
+      try {
+        const stored = localStorage.getItem('TURMERICGUARD_API_URL');
+        if (stored) return stored.replace(/\/+$/, '') + endpoint;
+      } catch (_) {}
+      if (typeof window !== 'undefined' && window.location && window.location.search) {
+        const p = new URLSearchParams(window.location.search);
+        if (p.get('api')) return p.get('api').replace(/\/+$/, '') + endpoint;
+      }
       if (window.location.protocol.startsWith('http') && window.location.port === '5000') {
         return endpoint;
       }
-      return 'http://127.0.0.1:5000' + endpoint;
+      if (window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+        return 'http://127.0.0.1:5000' + endpoint;
+      }
+      return PRODUCTION_BACKEND_URL + endpoint;
     }
 
     // Client-side Instant Optical Pre-Inspection
@@ -1767,12 +1807,25 @@
         console.error("Analysis server connection error:", e);
         if (pill) {
           pill.className = 'quality-status-pill rejected';
-          pill.textContent = '⚠️ Connecting to AI engine... Tap shutter again.';
+          pill.textContent = '⚠️ Backend unreachable: ' + (e.message || 'Check server connection');
           setTimeout(() => {
             pill.className = 'quality-status-pill';
             pill.textContent = '✓ Live camera active · Align sample mound in guide box';
           }, 3500);
         }
+        currentScan = {
+          id: 'backend_offline_' + Date.now(),
+          is_backend_unavailable: true,
+          is_turmeric: false,
+          verdict: "Backend unavailable — cannot analyze this image",
+          status: 'backend_unavailable',
+          concentration: 0.0,
+          confidence: 0.0,
+          rejection_message: "Backend unavailable — cannot analyze this image",
+          details: "The neural analysis backend is currently offline. Real-time screening requires an active AI engine. TurmericGuard AI never fabricates an unverified purity score."
+        };
+        switchScreen('screenResult');
+        runStagedResultReveal(currentScan);
       }
     }
 
@@ -1843,7 +1896,8 @@
     }
 
     function runScanWithPreset(presetId) {
-      currentScan = PRESETS[presetId] || PRESETS.pure_alleppey;
+      currentScan = Object.assign({}, PRESETS[presetId] || PRESETS.pure_alleppey);
+      currentScan.is_demo_preview = true;
       triggerHaptic('scan-complete');
 
       if (currentScan.is_turmeric !== false) {
@@ -1898,7 +1952,60 @@
 
       triggerHaptic('take-test');
       const fileToUpload = pendingGalleryFile;
-      await sendImageForAnalysis(fileToUpload, fileToUpload.name, 'gallery_import');
+
+      // Draw gallery image to an offscreen canvas and run client-side optical OOD check
+      const previewImg = document.getElementById('galleryPreviewImg');
+      const runInspection = (imgSource) => {
+        try {
+          const offscreenCanvas = document.createElement('canvas');
+          offscreenCanvas.width = imgSource.naturalWidth || imgSource.width || 300;
+          offscreenCanvas.height = imgSource.naturalHeight || imgSource.height || 300;
+          const ctx = offscreenCanvas.getContext('2d');
+          ctx.drawImage(imgSource, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+
+          const opticalCheck = inspectCanvasForTurmeric(offscreenCanvas);
+          if (!opticalCheck.is_turmeric) {
+            triggerHaptic('scan-complete');
+            currentScan = {
+              id: 'scan_ood_' + Date.now(),
+              is_turmeric: false,
+              verdict: "This doesn't look like turmeric powder",
+              status: 'ood_rejected',
+              concentration: 0.0,
+              confidence: 0.0,
+              rejection_message: "This doesn't look like turmeric powder. Please scan a turmeric sample.",
+              details: opticalCheck.reason || "Non-turmeric material or surface detected in imported gallery photo."
+            };
+            switchScreen('screenResult');
+            runStagedResultReveal(currentScan);
+            return false;
+          }
+        } catch (e) {
+          console.warn("Client-side optical check on gallery import:", e);
+        }
+        return true;
+      };
+
+      if (previewImg && previewImg.complete && previewImg.naturalWidth > 0) {
+        const passed = runInspection(previewImg);
+        if (!passed) return;
+        await sendImageForAnalysis(fileToUpload, fileToUpload.name, 'gallery_import');
+      } else {
+        const tempImg = new Image();
+        const objUrl = URL.createObjectURL(fileToUpload);
+        tempImg.onload = async () => {
+          const passed = runInspection(tempImg);
+          URL.revokeObjectURL(objUrl);
+          if (passed) {
+            await sendImageForAnalysis(fileToUpload, fileToUpload.name, 'gallery_import');
+          }
+        };
+        tempImg.onerror = async () => {
+          URL.revokeObjectURL(objUrl);
+          await sendImageForAnalysis(fileToUpload, fileToUpload.name, 'gallery_import');
+        };
+        tempImg.src = objUrl;
+      }
     }
 
     // Signature Staged Reveal Implementation
@@ -1907,6 +2014,30 @@
 
       const normalBox = document.getElementById('normalResultContainer');
       const oodBox = document.getElementById('oodRejectionContainer');
+      const backendUnavailBox = document.getElementById('backendUnavailableContainer');
+
+      // High-Visibility Demo Preview Banner Control
+      const demoBanner = document.getElementById('demoSimulationBanner');
+      if (demoBanner) {
+        demoBanner.style.display = data.is_demo_preview ? 'block' : 'none';
+      }
+
+      // Backend Unavailable Handling
+      if (data.is_backend_unavailable) {
+        if (normalBox) normalBox.style.display = 'none';
+        if (oodBox) oodBox.style.display = 'none';
+        if (backendUnavailBox) {
+          backendUnavailBox.style.display = 'block';
+          const uTitle = document.getElementById('backendUnavailableTitle');
+          const uSub = document.getElementById('backendUnavailableSubtitle');
+          const uDetails = document.getElementById('backendUnavailableDetailsText');
+          if (uTitle) uTitle.textContent = data.verdict || "Backend unavailable — cannot analyze this image";
+          if (uSub) uSub.textContent = data.rejection_message || "The AI inference backend is offline or unreachable.";
+          if (uDetails) uDetails.textContent = data.details || "Real image analysis requires an active neural model backend.";
+        }
+        return;
+      }
+      if (backendUnavailBox) backendUnavailBox.style.display = 'none';
 
       // Out-Of-Distribution Non-Turmeric Interception
       if (data.is_turmeric === false || data.status === 'ood_rejected') {

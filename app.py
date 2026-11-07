@@ -877,4 +877,6 @@ async def serve_dashboard(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="127.0.0.1", port=5000, reload=True)
+    port = int(os.environ.get("PORT", 5000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("app:app", host=host, port=port, reload=False if os.environ.get("PORT") else True)

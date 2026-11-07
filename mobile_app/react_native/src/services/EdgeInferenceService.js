@@ -1,10 +1,11 @@
 /**
- * TurmericGuard AI — Edge Inference Service
- * Executes mobile edge inference with offline INT8 quantized matrix acceleration
- * and dual fallback to local FastAPI backend.
+ * TurmericGuard AI — Edge Inference & Demo Preset Service
+ * Provides offline curated lab demonstration presets and connects to
+ * the production backend for live INT8 neural adulterant inference.
+ * All preset returns are explicitly labeled as illustrative demo data.
  */
 
-export const BACKEND_BASE_URL = 'http://127.0.0.1:5000';
+export const BACKEND_BASE_URL = 'https://turmericguard-ai-backend.onrender.com';
 
 export const DEMO_PRESETS = [
   {
@@ -118,27 +119,31 @@ export async function runEdgeInference(imageUri, options = {}) {
       return {
         success: false,
         is_turmeric: false,
+        is_demo_preset: true,
+        data_source: 'DEMO PRESET — Illustrative data, not live edge inference',
         error: 'OOD_REJECTION',
         verdict: preset.verdict,
         rejection_message: preset.rejection_message,
         details: preset.details,
         latency_ms: Date.now() - startTime,
         capture_source: captureSource,
-        model_format: 'ONNX-INT8 (Quantized)',
+        model_format: 'Demo Preset (Illustrative)',
       };
     }
 
     return {
       success: true,
       is_turmeric: true,
+      is_demo_preset: true,
+      data_source: 'DEMO PRESET — Illustrative data, not live edge inference',
       capture_source: captureSource,
       verdict: preset.verdict,
       is_pure: preset.verdict === 'Pure',
       concentration_level_pct: preset.concentration_level_pct,
       confidence_score_pct: preset.confidence_score_pct,
       latency_ms: Date.now() - startTime,
-      model_format: 'ONNX-INT8 (Quantized)',
-      offline_capable: true,
+      model_format: 'Demo Preset (Illustrative)',
+      offline_capable: false,
       class_probabilities: preset.class_probabilities,
       vision_metadata: {
         tcri: preset.tcri,

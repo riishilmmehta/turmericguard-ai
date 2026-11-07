@@ -23,6 +23,8 @@ ENV/
 *.apk.tmp
 static/uploads/*
 !static/uploads/.gitkeep
+static/qrcodes/qr_*.png
+!static/qrcodes/.gitkeep
 
 # Node / React Native
 node_modules/

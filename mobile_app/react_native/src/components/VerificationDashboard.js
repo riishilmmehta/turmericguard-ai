@@ -248,11 +248,19 @@ export default function VerificationDashboard({
         {/* Top Header */}
         <View style={styles.topHeader}>
           <Text style={styles.pureWordmark}>Pure</Text>
-          <View style={styles.latencyPill}>
-            <View style={[styles.latencyDot, { backgroundColor: statusTheme.color }]} />
-            <Text style={styles.latencyText}>INT8 · {latency}ms</Text>
+          <View style={[styles.latencyPill, result.is_demo_preset && { borderColor: tokens.colors.statusSuspicious }]}>
+            <View style={[styles.latencyDot, { backgroundColor: result.is_demo_preset ? tokens.colors.statusSuspicious : statusTheme.color }]} />
+            <Text style={styles.latencyText}>{result.is_demo_preset ? 'Demo Preset' : `INT8 · ${latency}ms`}</Text>
           </View>
         </View>
+
+        {result.is_demo_preset ? (
+          <View style={styles.demoPresetBanner}>
+            <Text style={styles.demoPresetBannerText}>
+              ⚠️ Demo preset only — results are illustrative, not live analysis
+            </Text>
+          </View>
+        ) : null}
 
         {/* 1. Staged Status Pill */}
         <Animated.View
@@ -672,5 +680,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: tokens.colors.textSecondary,
     lineHeight: 17,
+  },
+  demoPresetBanner: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  demoPresetBannerText: {
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
