@@ -1629,7 +1629,7 @@
     }
 
     // Backend API URL resolver (handles deployed production server, custom API overrides, local server, and file:/// previews)
-    const PRODUCTION_BACKEND_URL = 'https://turmericguard-ai-backend.onrender.com';
+    const PRODUCTION_BACKEND_URL = 'https://guitar-compromise-biotechnology-mono.trycloudflare.com';
 
     function getBackendApiUrl(endpoint) {
       if (typeof window !== 'undefined' && window.TURMERICGUARD_API_URL) {
@@ -1734,6 +1734,15 @@
         pill.textContent = '⚡ Running neural inference & OOD verification...';
       }
 
+      // Cold-start wakeup indicator if cloud backend is waking from sleep
+      let wakeupTimer = null;
+      if (pill) {
+        wakeupTimer = setTimeout(() => {
+          pill.className = 'quality-status-pill warning';
+          pill.textContent = '⏳ Waking up the analysis engine, this can take up to a minute on first use...';
+        }, 3500);
+      }
+
       try {
         const formData = new FormData();
         formData.append('image', fileOrBlob, filename || 'capture.jpg');
@@ -1744,6 +1753,7 @@
           method: 'POST',
           body: formData
         });
+        if (wakeupTimer) clearTimeout(wakeupTimer);
 
         if (res.status === 422) {
           const err = await res.json();
@@ -1804,6 +1814,7 @@
           pill.textContent = '⚠️ Analysis error: ' + (errorData.detail || errorData.message || 'Status ' + res.status);
         }
       } catch (e) {
+        if (wakeupTimer) clearTimeout(wakeupTimer);
         console.error("Analysis server connection error:", e);
         if (pill) {
           pill.className = 'quality-status-pill rejected';

@@ -6,7 +6,7 @@
  */
 
 // Dynamic Protocol Resolution (Works on live production backend, local server, and file:// preview)
-const PRODUCTION_BACKEND_URL = 'https://turmericguard-ai-backend.onrender.com';
+const PRODUCTION_BACKEND_URL = 'https://guitar-compromise-biotechnology-mono.trycloudflare.com';
 
 function resolveApiBase() {
   if (typeof window !== 'undefined' && window.TURMERICGUARD_API_URL) {
@@ -361,8 +361,16 @@ async function runAnalysis() {
     let data;
     try {
       const controller = new AbortController();
-      const timeoutMs = appState.selectedFile ? 15000 : 4000;
+      const timeoutMs = appState.selectedFile ? 35000 : 8000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      // Cold-start wakeup indicator if cloud backend is waking from sleep
+      let wakeupNoticeTimer = setTimeout(() => {
+        const stageStatusEl = document.getElementById('stageStatus');
+        if (stageStatusEl) {
+          stageStatusEl.innerHTML = '<span style="color:#F59E0B">⏳ Waking up the analysis engine, this can take up to a minute on first use...</span>';
+        }
+      }, 3500);
 
       if (appState.selectedFile) {
         const formData = new FormData();
@@ -383,6 +391,7 @@ async function runAnalysis() {
         });
       }
       clearTimeout(timeoutId);
+      clearTimeout(wakeupNoticeTimer);
       if (!response.ok) {
         if (response.status === 422) {
           const errData = await response.json();
@@ -422,6 +431,7 @@ async function runAnalysis() {
         showDemoSimulationBanner(false);
       }
     } catch (networkErr) {
+      if (typeof wakeupNoticeTimer !== 'undefined') clearTimeout(wakeupNoticeTimer);
       if (appState.selectedFile) {
         console.error('Backend unreachable for uploaded file:', networkErr);
         data = {
