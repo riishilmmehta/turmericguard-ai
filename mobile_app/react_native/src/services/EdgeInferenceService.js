@@ -5,7 +5,7 @@
  * All preset returns are explicitly labeled as illustrative demo data.
  */
 
-export const BACKEND_BASE_URL = 'https://guitar-compromise-biotechnology-mono.trycloudflare.com';
+export const BACKEND_BASE_URL = 'https://temporary-meet-princeton-why.trycloudflare.com';
 
 // Model target classes matching core/multitask_cnn.py
 export const TARGET_CLASSES = [

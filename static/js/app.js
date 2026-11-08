@@ -6,7 +6,7 @@
  */
 
 // Dynamic Protocol Resolution (Works on live production backend, local server, and file:// preview)
-const PRODUCTION_BACKEND_URL = 'https://guitar-compromise-biotechnology-mono.trycloudflare.com';
+const PRODUCTION_BACKEND_URL = 'https://temporary-meet-princeton-why.trycloudflare.com';
 
 function resolveApiBase() {
   if (typeof window !== 'undefined' && window.TURMERICGUARD_API_URL) {

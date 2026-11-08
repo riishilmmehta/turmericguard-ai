@@ -3974,7 +3974,7 @@
     "prev_hash": "247d62272f179d4b23e96cc970aa8b31ebaf0ef9fbf919dd58ba090c5deab627",
     "block_hash": "549155aaf88c9ac2281fef25a7ce933e40504431b83770fd4703fd970bfb5fa2",
     "location": "Central Spices Mandi Checkpoint",
-    "capture_source": "gallery_import",
+    "capture_source": "live_camera",
     "tamper_evident_valid": true
   },
   {
@@ -4008,7 +4008,24 @@
     "prev_hash": "02f631e058d722400e72cec7448bcf5df9bbebe06594bc08a31250e1745fcaff",
     "block_hash": "5c8009f9df1a538059d39499b35fde28d966c88b5fed64d9eb0311699c6f7638",
     "location": "Central Spices Mandi Checkpoint",
-    "capture_source": "gallery_import",
+    "capture_source": "live_camera",
+    "tamper_evident_valid": true
+  },
+  {
+    "index": 236,
+    "timestamp": "2026-11-08T07:39:53Z",
+    "test_id": "TG-20261108-8021F5",
+    "device_id": "TG-RPi5-LAB-01",
+    "lot_number": "LOT-TUR-2026-AUTO",
+    "purity_score": 82.3,
+    "status": "SUSPICIOUS",
+    "adulterant": "None (Pure Curcumin)",
+    "estimated_conc": 0.0,
+    "calibration_hash": "a4f89d31c4b12e88b4d081912a",
+    "prev_hash": "5c8009f9df1a538059d39499b35fde28d966c88b5fed64d9eb0311699c6f7638",
+    "block_hash": "5686ec01a44e93b51bed25f6112aa2fd36cd7b0f4f6de68c422ad762b2eabd3c",
+    "location": "Central Spices Mandi Checkpoint",
+    "capture_source": "live_camera",
     "tamper_evident_valid": true
   }
 ]
